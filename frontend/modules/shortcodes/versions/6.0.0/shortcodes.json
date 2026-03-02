@@ -1,0 +1,473 @@
+[
+    {
+        "key": "faz_revisit_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_notice_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_notice_description",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_settings_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_reject_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_accept_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_readmore_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_notice_close_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preview_save_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_description",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_option_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_enable_optout_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_disable_optout_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_gpc_description",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_close_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_description",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_showmore_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_showless_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_accept_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_reject_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_save_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_donotsell_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_always_enabled",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_enable_category_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_disable_category_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_cancel_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_optout_confirm_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_close_label",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_video_placeholder_title",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_audit_table_empty_text",
+        "type": "text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_settings",
+        "type": "html",
+        "content": {
+            "link": "<a href=\"javascript:void(0);\" class=\"faz-btn faz-btn-customize\" aria-label=\"[faz_settings_text]\" data-faz-tag=\"settings-button\">[faz_settings_text]</a>",
+            "button": "<button class=\"faz-btn faz-btn-customize\" aria-label=\"[faz_settings_text]\" data-faz-tag=\"settings-button\">[faz_settings_text]</button>"
+        },
+        "attributes": {
+            "data-faz-tag": "settings-button"
+        },
+        "customTag": "settings-button",
+        "uiTag": "settings-button"
+    },
+    {
+        "key": "faz_reject",
+        "type": "html",
+        "content": {
+            "link": "<a href=\"javascript:void(0);\" class=\"faz-btn faz-btn-reject\" aria-label=\"[faz_reject_text]\" data-faz-tag=\"reject-button\">[faz_reject_text]</a>",
+            "button": "<button class=\"faz-btn faz-btn-reject\" aria-label=\"[faz_reject_text]\" data-faz-tag=\"reject-button\">[faz_reject_text]</button>"
+        },
+        "attributes": {
+            "data-faz-tag": "reject-button"
+        },
+        "customTag": "reject-button",
+        "uiTag": "reject-button"
+    },
+    {
+        "key": "faz_accept",
+        "type": "html",
+        "content": {
+            "link": "<a href=\"javascript:void(0);\" class=\"faz-btn faz-btn-accept\" aria-label=\"[faz_accept_text]\" data-faz-tag=\"accept-button\">[faz_accept_text]</a>",
+            "button": "<button class=\"faz-btn faz-btn-accept\" aria-label=\"[faz_accept_text]\" data-faz-tag=\"accept-button\">[faz_accept_text]</button>"
+        },
+        "attributes": {
+            "data-faz-tag": "accept-button"
+        },
+        "customTag": "accept-button",
+        "uiTag": "accept-button"
+    },
+    {
+        "key": "faz_donot_sell",
+        "type": "html",
+        "content": {
+            "link": "<a href=\"javascript:void(0);\" aria-label=\"[faz_donotsell_text]\" data-faz-tag=\"donotsell-button\">[faz_donotsell_text]</a>",
+            "button": "<button class=\"faz-btn faz-btn-do-not-sell\" aria-label=\"[faz_donotsell_text]\" data-faz-tag=\"donotsell-button\">[faz_donotsell_text]</button>"
+        },
+        "attributes": {
+            "data-faz-tag": "donotsell-button"
+        },
+        "customTag": "donotsell-button",
+        "uiTag": "donotsell-button"
+    },
+    {
+        "key": "faz_show_desc",
+        "type": "data",
+        "content": {
+            "button": "<button class=\"faz-show-desc-btn\" data-faz-tag=\"show-desc-button\" aria-label=\"[faz_showmore_text]\">[faz_showmore_text]</button>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "show-desc-button"
+    },
+    {
+        "key": "faz_hide_desc",
+        "type": "data",
+        "content": {
+            "button": "<button class=\"faz-show-desc-btn\" data-faz-tag=\"hide-desc-button\" aria-label=\"[faz_showless_text]\">[faz_showless_text]</button>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "hide-desc-button"
+    },
+    {
+        "key": "faz_optout_show_desc",
+        "type": "data",
+        "content": {
+            "button": "<button class=\"faz-show-desc-btn\" data-faz-tag=\"optout-show-desc-button\" aria-label=\"[faz_showmore_text]\">[faz_showmore_text]</button>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "optout-show-desc-button"
+    },
+    {
+        "key": "faz_optout_hide_desc",
+        "type": "data",
+        "content": {
+            "button": "<button class=\"faz-show-desc-btn\" data-faz-tag=\"optout-hide-desc-button\" aria-label=\"[faz_showless_text]\">[faz_showless_text]</button>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "optout-hide-desc-button"
+    },
+    {
+        "key": "faz_readmore",
+        "type": "data",
+        "content": {
+            "link": "<a href=\"[faz_privacy_link]\" class=\"faz-policy\" aria-label=\"[faz_readmore_text]\" target=\"_blank\" rel=\"noopener\" data-faz-tag=\"readmore-button\">[faz_readmore_text]</a>",
+            "button": "<button class=\"faz-policy\" aria-label=\"[faz_readmore_text]\" data-faz-tag=\"readmore-button\">[faz_readmore_text]</button>"
+        },
+        "attributes": {
+            "data-faz-tag": "readmore-button"
+        },
+        "customTag": "",
+        "uiTag": "readmore-button"
+    },
+    {
+        "key": "faz_audit_table",
+        "type": "data",
+        "content": {
+            "container": "<ul class=\"faz-cookie-des-table\">[CONTENT]</ul>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "audit-table"
+    },
+    {
+        "key": "faz_outside_audit_table",
+        "type": "data",
+        "content": {
+            "container": "<h3>[faz_preference_{{category_slug}}_title]</h3><div class=\"faz-table-wrapper\"><table class=\"faz-cookie-audit-table\">[CONTENT]</table></div>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "outside-audit-table"
+    },
+    {
+        "key": "faz_audit_table_empty",
+        "type": "data",
+        "content": {
+            "container": "<p class=\"faz-empty-cookies-text\">[faz_audit_table_empty_text]</p>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "audit-table-empty"
+    },
+    {
+        "key": "faz_category_toggle_label",
+        "type": "data",
+        "content": {
+            "container": "[faz_{{status}}_category_label] [faz_preference_{{category_slug}}_title]"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "detail-category-toggle"
+    },
+    {
+        "key": "faz_optout_toggle_label",
+        "type": "data",
+        "content": {
+            "container": "[faz_{{status}}_optout_label] [faz_optout_option_title]"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "optout-option-toggle"
+    },
+    {
+        "key": "faz_video_placeholder",
+        "type": "data",
+        "content": {
+            "container": "<div class=\"video-placeholder-normal\" data-faz-tag=\"video-placeholder\" id=\"[UNIQUEID]\"><p class=\"video-placeholder-text-normal\" data-faz-tag=\"placeholder-title\">[faz_video_placeholder_title]</p></div>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "video-placeholder"
+    },
+    {
+        "key": "faz_preview_category",
+        "type": "system",
+        "content": {
+            "container": "<div class=\"faz-category-direct-item\"><label for=\"fazCategoryDirect{{category_slug}}\" data-faz-tag=\"detail-category-preview-title\">[faz_preview_{{category_slug}}_title]</label><div class=\"faz-category-direct-switch\" data-faz-tag=\"detail-category-preview-toggle\"><input type=\"checkbox\" id=\"fazCategoryDirect{{category_slug}}\"></div></div>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "detail-category-preview"
+    },
+    {
+        "key": "faz_preference_category",
+        "type": "system",
+        "content": {
+            "container": "<div class=\"faz-accordion\" id=\"fazDetailCategory{{category_slug}}\"> <div class=\"faz-accordion-item\"> <div class=\"faz-accordion-chevron\"><i class=\"faz-chevron-right\"></i></div> <div class=\"faz-accordion-header-wrapper\"> <div class=\"faz-accordion-header\"><button class=\"faz-accordion-btn\" aria-label=\"[faz_preference_{{category_slug}}_title]\" data-faz-tag=\"detail-category-title\">[faz_preference_{{category_slug}}_title]</button><span class=\"faz-always-active\">[faz_preference_always_enabled]</span> <div class=\"faz-switch\" data-faz-tag=\"detail-category-toggle\"><input type=\"checkbox\" id=\"fazSwitch{{category_slug}}\"></div> </div> <div class=\"faz-accordion-header-des\" data-faz-tag=\"detail-category-description\"> [faz_preference_{{category_slug}}_description]</div> </div> </div> <div class=\"faz-accordion-body\"> <div class=\"faz-audit-table\" data-faz-tag=\"audit-table\">[faz_audit_table]</div> </div> </div>"
+        },
+        "attributes": {},
+        "customTag": "",
+        "uiTag": "detail-categories"
+    },
+    {
+        "key": "faz_preview_{{category_slug}}_title",
+        "type": "category-text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_{{category_slug}}_title",
+        "type": "category-text",
+        "content": {},
+        "attributes": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_preference_{{category_slug}}_description",
+        "type": "category-text",
+        "content": {},
+        "customTag": "",
+        "uiTag": ""
+    },
+    {
+        "key": "faz_privacy_link",
+        "type": "data",
+        "content": {},
+        "customTag": "",
+        "uiTag": ""
+    }
+] 

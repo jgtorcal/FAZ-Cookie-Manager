@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+
+# Logs
+*.log
+debug.log
+
+# Build artifacts
+*.zip
+
+# Composer vendor (install via composer install)
+vendor/
