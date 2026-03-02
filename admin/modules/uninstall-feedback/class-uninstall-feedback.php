@@ -8,6 +8,7 @@
 namespace FazCookie\Admin\Modules\Uninstall_Feedback;
 
 use WP_Error;
+use WP_REST_Response;
 use FazCookie\Includes\Modules;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -489,9 +490,9 @@ class Uninstall_Feedback extends Modules {
 	 */
 	public function send_uninstall_reason( $request ) {
 		if ( ! isset( $request['reason_id'] ) ) {
-			return new \WP_Error( 'missing_reason', __( 'Reason ID is required.', 'faz-cookie-manager' ), array( 'status' => 400 ) );
+			return new WP_Error( 'missing_reason', __( 'Reason ID is required.', 'faz-cookie-manager' ), array( 'status' => 400 ) );
 		}
 		// External feedback endpoint disabled — data stays local.
-		return new \WP_REST_Response( array( 'success' => true ), 200 );
+		return new WP_REST_Response( array( 'success' => true ), 200 );
 	}
 }

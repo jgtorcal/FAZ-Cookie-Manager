@@ -259,8 +259,12 @@
 		setVal('faz-b-btn-readmore-label', btnLabels.readMore || '');
 
 		// Cookie policy link
-		var privacyLink = notice.privacyLink || '';
-		setVal('faz-b-privacy-link', privacyLink);
+		var privacyLink = (notice.privacyLink || '').trim();
+		setVal('faz-b-privacy-link', privacyLink || '/cookie-policy');
+
+		// Revisit consent title (tooltip / aria-label)
+		var revisitContent = (c.revisitConsent && c.revisitConsent.elements) || {};
+		setVal('faz-b-revisit-title', revisitContent.title || '');
 
 		// Preference center
 		var pref = (c.preferenceCenter && c.preferenceCenter.elements) || {};
@@ -296,6 +300,11 @@
 		c.notice.elements.privacyLink = privacyLinkVal || '/cookie-policy';
 
 		// Preference center
+		// Revisit consent title
+		if (!c.revisitConsent) c.revisitConsent = { elements: {} };
+		if (!c.revisitConsent.elements) c.revisitConsent.elements = {};
+		c.revisitConsent.elements.title = getVal('faz-b-revisit-title');
+
 		if (!c.preferenceCenter) c.preferenceCenter = { elements: {} };
 		if (!c.preferenceCenter.elements) c.preferenceCenter.elements = {};
 		c.preferenceCenter.elements.title = getVal('faz-b-pref-title');

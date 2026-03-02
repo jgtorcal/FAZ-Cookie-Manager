@@ -177,9 +177,9 @@ defined( 'ABSPATH' ) || exit;
 						<input type="text" class="faz-input" id="faz-b-btn-readmore-label" placeholder="Cookie Policy">
 					</div>
 					<div class="faz-form-group">
-						<label>Cookie Policy URL</label>
+						<label><?php echo esc_html__( 'Cookie Policy URL', 'faz-cookie-manager' ); ?></label>
 						<input type="text" class="faz-input" id="faz-b-privacy-link" placeholder="/cookie-policy">
-						<div class="faz-help">Relative (<code>/cookie-policy</code>) or absolute (<code>https://example.com/privacy</code>). Default: <code>/cookie-policy</code></div>
+						<div class="faz-help"><?php echo esc_html__( 'Relative (/cookie-policy) or absolute (https://example.com/privacy). Default: /cookie-policy', 'faz-cookie-manager' ); ?></div>
 					</div>
 				</div>
 			</div>
@@ -444,6 +444,11 @@ defined( 'ABSPATH' ) || exit;
 						<input type="color" id="faz-b-revisit-bg">
 						<input type="text" class="faz-input faz-input-sm" id="faz-b-revisit-bg-hex" style="width:90px;">
 					</div>
+				</div>
+				<div class="faz-form-group">
+					<label><?php echo esc_html__( 'Widget Label', 'faz-cookie-manager' ); ?></label>
+					<input type="text" class="faz-input" id="faz-b-revisit-title" placeholder="Consent Preferences" style="max-width:320px;">
+					<div class="faz-help"><?php echo esc_html__( 'Used as tooltip and screen reader label (aria-label).', 'faz-cookie-manager' ); ?></div>
 				</div>
 			</div>
 		</div>

@@ -549,7 +549,7 @@ class Upgrade extends Modules {
 			$post = get_post( $page );
 			if ( $post instanceof \WP_Post ) {
 				if ( 'publish' === $post->post_status ) {
-					$privacy = get_page_link( $post );
+					$privacy = esc_url_raw( get_page_link( $post ) );
 				}
 			}
 			return $privacy;

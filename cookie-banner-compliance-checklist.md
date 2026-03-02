@@ -329,7 +329,7 @@ La non conformità alle regole sui cookie può comportare sanzioni significative
 3. D.Lgs. 196/2003 (Codice Privacy italiano), art. 122
 4. Garante Privacy, Linee Guida Cookie, 10/06/2021 (doc. web 9677876)
 5. Garante Privacy, Provvedimento 27/02/2025 (doc. web 10118222)
-6. Garante Privacy, FAQ Cookie (garanteprivacy.it/faq/cookie)
+6. Garante Privacy, [FAQ Cookie](https://www.garanteprivacy.it/faq/cookie)
 7. EDPB, Guidelines 05/2020 on Consent under Regulation 2016/679
 8. EDPB, Cookie Banner Taskforce (2022)
 9. IAB Europe, Transparency & Consent Framework v2.2
@@ -338,10 +338,13 @@ La non conformità alle regole sui cookie può comportare sanzioni significative
 12. AEPD, Guía sobre el uso de las cookies (2024)
 13. ICO (UK), Guidance on the use of cookies and similar technologies
 14. CGUE, Causa C-673/17 (Planet49, 01/10/2019) — pre-ticked boxes
-15. iubenda.com, GDPR Cookie Consent Cheatsheet
-16. e-cons.it, Banner Cookie non conformi: 5 errori da evitare
-17. rubisco.it, GDPR e Cookie 2025
-18. European Accessibility Act (EAA) — Dir. 2019/882
+15. European Accessibility Act (EAA) — Dir. 2019/882
+
+### Fonti informative non normative
+
+1. iubenda.com, GDPR Cookie Consent Cheatsheet
+2. e-cons.it, Banner Cookie non conformi: 5 errori da evitare
+3. rubisco.it, GDPR e Cookie 2025
 
 ---
 

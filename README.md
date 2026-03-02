@@ -93,7 +93,7 @@ Global controls: enable/disable banner, exclude pages, consent log retention, sc
 | WCAG 2.1 AA | Partial | Keyboard navigation, focus indicators, ARIA labels |
 | WP Consent API | Compliant | Registered via `wp_consent_api_registered_` filter |
 
-> **Note:** Compliance status depends on correct plugin configuration for your specific use case. This table is not legal advice. Consult a qualified legal professional for your jurisdiction.
+> **Legal Disclaimer:** Compliance status depends on correct plugin configuration for your specific use case and does not constitute a legal guarantee. This table is for informational purposes only and is not legal advice. Consult a qualified legal professional for your jurisdiction.
 
 ### Automated Compliance Tests
 
@@ -104,7 +104,7 @@ Global controls: enable/disable banner, exclude pages, consent log retention, sc
 - G07: Non-technical toggles OFF by default
 - I08: Technical cookies non-disableable
 
-**All 21 tests pass.**
+**Test suite includes 21 automated compliance checks.**
 
 ---
 
