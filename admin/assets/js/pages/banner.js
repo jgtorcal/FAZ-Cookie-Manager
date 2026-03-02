@@ -639,30 +639,36 @@
 		var href = noticeEl.privacyLink || getVal('faz-b-privacy-link') || '/cookie-policy';
 		if (!label) return;
 
-		// Build readmore HTML (link or button)
-		var html;
+		// Build readmore element via DOM API (avoids XSS from unescaped values)
+		var el;
 		if (readMoreCfg.type === 'link') {
-			html = '<a href="' + href + '" class="faz-policy" aria-label="' + label + '" target="_blank" rel="noopener" data-faz-tag="readmore-button">' + label + '</a>';
+			el = document.createElement('a');
+			el.href = href;
+			el.target = '_blank';
+			el.rel = 'noopener';
 		} else {
-			html = '<button class="faz-policy" aria-label="' + label + '" data-faz-tag="readmore-button">' + label + '</button>';
+			el = document.createElement('button');
 		}
+		el.className = 'faz-policy';
+		el.setAttribute('aria-label', label);
+		el.setAttribute('data-faz-tag', 'readmore-button');
+		el.textContent = label;
 
 		// Append to description element (same as frontend _fazAttachReadMore)
 		var descEl = host.querySelector('[data-faz-tag="description"]');
 		if (!descEl) return;
 		var lastP = descEl.querySelector('p:last-child');
-		if (lastP) {
-			lastP.insertAdjacentHTML('beforeend', '&nbsp;' + html);
-		} else {
-			descEl.insertAdjacentHTML('beforeend', '&nbsp;' + html);
-		}
+		var target = lastP || descEl;
+		target.appendChild(document.createTextNode('\u00A0'));
+		target.appendChild(el);
 
 		// Apply styles from config
 		var styles = readMoreCfg.styles || {};
-		host.querySelectorAll('[data-faz-tag="readmore-button"]').forEach(function (el) {
-			for (var s in styles) {
-				if (styles[s]) el.style[s] = styles[s];
-			}
+		var keys = Object.keys(styles);
+		host.querySelectorAll('[data-faz-tag="readmore-button"]').forEach(function (rmEl) {
+			keys.forEach(function (s) {
+				if (styles[s]) rmEl.style[s] = styles[s];
+			});
 		});
 	}
 

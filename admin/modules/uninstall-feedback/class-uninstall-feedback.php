@@ -24,20 +24,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Uninstall_Feedback extends Modules {
 
 	/**
-	 * API url.
-	 *
-	 * @var string
-	 */
-	protected $api_url = ''; // Disabled - no external feedback endpoint
-
-	/**
-	 * Plugin version.
-	 *
-	 * @var string
-	 */
-	protected $current_version = FAZ_VERSION;
-
-	/**
 	 * Plugin basename.
 	 *
 	 * @var string

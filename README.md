@@ -157,6 +157,7 @@ Global controls: enable/disable banner, exclude pages, consent log retention, sc
 
 - **Cookie list**: Full CRUD for cookies -- name, domain, duration, description, category, URL pattern
 - **Cookie categories**: Necessary, Functional, Analytics, Performance, Advertisement, Uncategorized
+- **Per-category prior consent**: Each category has a configurable `prior_consent` flag. Set to OFF for first-party analytics cookies that meet the Garante Privacy exemption (first-party only, aggregated data, anonymized IP, no cross-referencing)
 - **Audit table**: Per-category cookie listing embedded in the preference center
 - **Multilingual descriptions**: Cookie description and duration stored per-language
 
@@ -205,6 +206,7 @@ Full `__tcfapi()` implementation compliant with the IAB Transparency & Consent F
 - **TC String generation**: Minimal base64url core-segment with purpose consent bits
 - **Cross-frame messaging**: `__tcfapiLocator` iframe + `postMessage` bridge
 - **Command queue**: Processes pre-load `__tcfapi.a` queue
+- **Note**: The Global Vendor List (GVL) is not loaded dynamically. TC Strings contain purpose consent bits mapped from the plugin's category toggles. For full vendor-level granularity, integrate with an external GVL loader.
 
 ### Microsoft Consent Integration
 

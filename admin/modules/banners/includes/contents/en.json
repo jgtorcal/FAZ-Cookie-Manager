@@ -3,7 +3,7 @@
         "notice": {
             "elements": {
                 "title": "We value your privacy",
-                "description": "<p>We use cookies to enhance your browsing experience, serve personalised ads or content, and analyse our traffic. By clicking \"Accept All\", you consent to our use of cookies.</p>",
+                "description": "<p>We use cookies to enhance your browsing experience, serve personalised ads or content, and analyse our traffic. By clicking \"Accept All\", you consent to our use of cookies. You can change or withdraw your consent at any time by clicking the consent preferences icon.</p>",
                 "privacyLink": "",
                 "buttons": {
                     "elements": {
@@ -103,7 +103,7 @@
         "notice": {
             "elements": {
                 "title": "We value your privacy",
-                "description": "<p>This website or its third-party tools process personal data. You can opt out of the sale of your personal information by clicking on the \"Do Not Sell or Share My Personal Information\" link.</p>",
+                "description": "<p>This website or its third-party tools process personal data. You can opt out of the sale of your personal information by clicking on the \"Do Not Sell or Share My Personal Information\" link. You can change or withdraw your consent at any time by clicking the consent preferences icon.</p>",
                 "privacyLink": "",
                 "buttons": {
                     "elements": {
