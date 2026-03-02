@@ -63,7 +63,7 @@ class Upgrade extends Modules {
 			return;
 		}
 		if ( isset( $_GET['migrate'] ) && 'process' === sanitize_text_field( wp_unslash( $_GET['migrate'] ) ) ) {
-			register_post_type( CLI_POST_TYPE );
+			register_post_type( FAZ_POST_TYPE );
 			register_taxonomy(
 				'cookielawinfo-category',
 				'cookielawinfo'
@@ -77,9 +77,9 @@ class Upgrade extends Modules {
 	 * @return void
 	 */
 	public function start_migration() {
-		require_once CLI_PLUGIN_BASEPATH . 'legacy/includes/class-cookie-law-info.php';
-		require_once CLI_PLUGIN_BASEPATH . 'legacy/public/modules/shortcode/shortcode.php';
-		require_once CLI_PLUGIN_BASEPATH . 'legacy/admin/modules/ccpa/ccpa.php';
+		require_once FAZ_PLUGIN_BASEPATH . 'legacy/includes/class-cookie-law-info.php';
+		require_once FAZ_PLUGIN_BASEPATH . 'legacy/public/modules/shortcode/shortcode.php';
+		require_once FAZ_PLUGIN_BASEPATH . 'legacy/admin/modules/ccpa/ccpa.php';
 
 		$this->settings = \Cookie_Law_Info::get_settings();
 		$this->migrate_settings();
@@ -92,7 +92,7 @@ class Upgrade extends Modules {
 				'expiry' => time() + 14 * DAY_IN_SECONDS,
 			)
 		);
-		wp_safe_redirect( admin_url( 'admin.php?page=cookie-law-info' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
 	}
 
 	/**
@@ -522,7 +522,7 @@ class Upgrade extends Modules {
 			add_filter(
 				'faz_admin_scripts_global',
 				function( $config ) {
-					$config['legacyURL'] = esc_attr( wp_nonce_url( add_query_arg( 'revert', 'true', admin_url( 'admin.php?page=cookie-law-info' ) ), 'revert', '_wpnonce' ) );
+					$config['legacyURL'] = esc_attr( wp_nonce_url( add_query_arg( 'revert', 'true', admin_url( 'admin.php?page=faz-cookie-manager' ) ), 'revert', '_wpnonce' ) );
 					return $config;
 				}
 			);
@@ -531,7 +531,7 @@ class Upgrade extends Modules {
 			$notice->add(
 				'migration_notice',
 				array( // translators: %s: Migration notice expiry notice.
-					'message' => sprintf( __( 'Not satisfied with the New UI and related changes? You can switch back to the old UI at any time until %s.', 'cookie-law-info' ), esc_html( $date ) ),
+					'message' => sprintf( __( 'Not satisfied with the New UI and related changes? You can switch back to the old UI at any time until %s.', 'faz-cookie-manager' ), esc_html( $date ) ),
 					'type'    => 'info',
 				)
 			);
@@ -580,6 +580,6 @@ class Upgrade extends Modules {
 		$options['account']['connected'] = false;
 		$settings->update( $options );
 		delete_option( 'faz_cookie_consent_lite_db_version' );
-		wp_safe_redirect( admin_url( 'edit.php?post_type=cookielawinfo&page=cookie-law-info' ) );
+		wp_safe_redirect( admin_url( 'edit.php?post_type=cookielawinfo&page=faz-cookie-manager' ) );
 	}
 }

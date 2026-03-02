@@ -23,15 +23,6 @@ use FazCookie\Includes\Notice;
 class Admin {
 
 	/**
-	 * The ID of this plugin.
-	 *
-	 * @since    3.0.0
-	 * @access   private
-	 * @var      string    $plugin_name    The ID of this plugin.
-	 */
-	private $plugin_name;
-
-	/**
 	 * The version of this plugin.
 	 *
 	 * @since    3.0.0
@@ -39,15 +30,6 @@ class Admin {
 	 * @var      string    $version    The current version of this plugin.
 	 */
 	private $version;
-
-	/**
-	 * The suffix of the script.
-	 *
-	 * @since    3.0.0
-	 * @access   private
-	 * @var      string    $suffix    The suffix of the script.
-	 */
-	private $suffix;
 
 	/**
 	 * Admin modules of the plugin
@@ -81,14 +63,11 @@ class Admin {
 	 * Initialize the class and set its properties.
 	 *
 	 * @since    3.0.0
-	 * @param      string $plugin_name       The name of this plugin.
 	 * @param      string $version    The version of this plugin.
 	 */
-	public function __construct( $plugin_name, $version ) {
-		$this->plugin_name = $plugin_name;
-		$this->version     = $version;
-		$this->suffix      = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-		self::$modules     = $this->get_default_modules();
+	public function __construct( $version ) {
+		$this->version = $version;
+		self::$modules = $this->get_default_modules();
 		$this->load();
 		$this->add_notices();
 		$this->add_review_notice();
@@ -99,7 +78,7 @@ class Admin {
 		add_action( 'activated_plugin', array( $this, 'handle_activation_redirect' ) );
 		add_filter( 'admin_body_class', array( $this, 'admin_body_classes' ) );
 		add_action( 'admin_print_scripts', array( $this, 'hide_admin_notices' ) );
-		add_filter( 'plugin_action_links_' . CLI_PLUGIN_BASENAME, array( $this, 'plugin_action_links' ) );
+		add_filter( 'plugin_action_links_' . FAZ_PLUGIN_BASENAME, array( $this, 'plugin_action_links' ) );
 	}
 
 	/**
@@ -187,37 +166,37 @@ class Admin {
 		return array(
 			'dashboard'    => array(
 				'title' => __( 'Dashboard', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info',
+				'slug'  => 'faz-cookie-manager',
 				'view'  => 'dashboard',
 			),
 			'banner'       => array(
 				'title' => __( 'Cookie Banner', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-banner',
+				'slug'  => 'faz-cookie-manager-banner',
 				'view'  => 'banner',
 			),
 			'cookies'      => array(
 				'title' => __( 'Cookies', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-cookies',
+				'slug'  => 'faz-cookie-manager-cookies',
 				'view'  => 'cookies',
 			),
 			'consent-logs' => array(
 				'title' => __( 'Consent Logs', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-consent-logs',
+				'slug'  => 'faz-cookie-manager-consent-logs',
 				'view'  => 'consent-logs',
 			),
 			'gcm'          => array(
 				'title' => __( 'Google Consent Mode', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-gcm',
+				'slug'  => 'faz-cookie-manager-gcm',
 				'view'  => 'gcm',
 			),
 			'languages'    => array(
 				'title' => __( 'Languages', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-languages',
+				'slug'  => 'faz-cookie-manager-languages',
 				'view'  => 'languages',
 			),
 			'settings'     => array(
 				'title' => __( 'Settings', 'faz-cookie-manager' ),
-				'slug'  => 'cookie-law-info-settings',
+				'slug'  => 'faz-cookie-manager-settings',
 				'view'  => 'settings',
 			),
 		);
@@ -276,7 +255,7 @@ class Admin {
 					'name' => esc_attr( get_option( 'blogname' ) ),
 				),
 				'assetsURL'    => defined( 'FAZ_PLUGIN_URL' ) ? FAZ_PLUGIN_URL . 'frontend/images/' : '',
-				'defaultLogo'  => plugins_url( 'cookie.png', CLI_PLUGIN_FILENAME ),
+				'defaultLogo'  => plugins_url( 'cookie.png', FAZ_PLUGIN_FILENAME ),
 				'adminURL'     => admin_url( 'admin.php' ),
 				'multilingual' => faz_i18n_is_multilingual() && count( faz_selected_languages() ) > 0,
 				'languages'    => array(
@@ -325,8 +304,8 @@ class Admin {
 		$step         = $settings->get( 'onboarding', 'step' );
 		$do_redirect  = true;
 		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : false; // phpcs:ignore WordPress.Security.NonceVerification
-		if ( false !== strpos( $current_page, 'cookie-law-info' ) ) {
-			$is_onboarding_path = 'cookie-law-info-wizard' === $current_page;
+		if ( false !== strpos( $current_page, 'faz-cookie-manager' ) ) {
+			$is_onboarding_path = 'faz-cookie-manager-wizard' === $current_page;
 
 			if ( wp_doing_ajax() || is_network_admin() || ! current_user_can( 'manage_options' ) ) {
 				$do_redirect = false;
@@ -337,7 +316,7 @@ class Admin {
 			}
 
 			if ( $do_redirect ) {
-				wp_safe_redirect( admin_url( 'admin.php?page=cookie-law-info-wizard' ) );
+				wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager-wizard' ) );
 				exit;
 			}
 		}
@@ -377,7 +356,7 @@ class Admin {
 	 */
 	public function admin_menu() {
 		$capability = 'manage_options';
-		$parent     = 'cookie-law-info';
+		$parent     = 'faz-cookie-manager';
 
 		// Main menu page (Dashboard).
 		add_menu_page(
@@ -409,7 +388,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_page() {
-		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'cookie-law-info'; // phpcs:ignore WordPress.Security.NonceVerification
+		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'faz-cookie-manager'; // phpcs:ignore WordPress.Security.NonceVerification
 
 		$faz_page_title = '';
 		$faz_page_slug  = 'dashboard';
@@ -480,13 +459,9 @@ class Admin {
 		$json = wp_json_encode( $locale );
 		if ( preg_match( '/<br[\s\/\\\\]*>/', $json ) ) {
 			foreach ( $locale as $key => $value ) {
-				if ( is_string( $value ) ) {
-					$locale[ $key ] = str_replace( array( '<br>', '<br/>', '<br />' ), '', $value );
-				} elseif ( is_array( $value ) ) {
-					foreach ( $value as $sub_key => $sub_value ) {
-						if ( is_string( $sub_value ) ) {
-							$locale[ $key ][ $sub_key ] = str_replace( array( '<br>', '<br/>', '<br />' ), '', $sub_value );
-						}
+				foreach ( (array) $value as $sub_key => $sub_value ) {
+					if ( is_string( $sub_value ) ) {
+						$locale[ $key ][ $sub_key ] = str_replace( array( '<br>', '<br/>', '<br />' ), '', $sub_value );
 					}
 				}
 			}
@@ -513,17 +488,17 @@ class Admin {
 		$plugins_dir   = $languages_dir . 'plugins/';
 
 		if ( is_dir( $plugins_dir ) ) {
-			$files = glob( $plugins_dir . 'cookie-law-info-' . $current_lang . '-*.json' );
+			$files = glob( $plugins_dir . 'faz-cookie-manager-' . $current_lang . '-*.json' );
 			if ( ! empty( $files ) ) {
 				$json_paths = array_merge( $json_paths, $files );
 			}
 
-			$files = glob( $plugins_dir . 'cookie-law-info-' . $lang_code . '-*.json' );
+			$files = glob( $plugins_dir . 'faz-cookie-manager-' . $lang_code . '-*.json' );
 			if ( ! empty( $files ) ) {
 				$json_paths = array_merge( $json_paths, $files );
 			}
 
-			$files = glob( $plugins_dir . 'cookie-law-info-en-*.json' );
+			$files = glob( $plugins_dir . 'faz-cookie-manager-en-*.json' );
 			if ( ! empty( $files ) ) {
 				$json_paths = array_merge( $json_paths, $files );
 			}
@@ -559,7 +534,7 @@ class Admin {
 	 * @return void
 	 */
 	public function hide_admin_notices() {
-		if ( empty( $_REQUEST['page'] ) || ! preg_match( '/cookie-law-info/', esc_html( wp_unslash( $_REQUEST['page'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( empty( $_REQUEST['page'] ) || ! preg_match( '/faz-cookie-manager/', esc_html( wp_unslash( $_REQUEST['page'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			return;
 		}
 		global $wp_filter;
@@ -599,13 +574,13 @@ class Admin {
 	 * @return void
 	 */
 	public function handle_activation_redirect( $plugin ) {
-		if ( CLI_PLUGIN_BASENAME !== $plugin ) {
+		if ( FAZ_PLUGIN_BASENAME !== $plugin ) {
 			return;
 		}
 		if ( wp_doing_ajax() || is_network_admin() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=cookie-law-info' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
 		exit;
 	}
 
@@ -627,7 +602,7 @@ class Admin {
 	 * @return void
 	 */
 	public function redirect() {
-		wp_safe_redirect( admin_url( 'admin.php?page=cookie-law-info' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
 	}
 
 	/**
@@ -637,7 +612,7 @@ class Admin {
 	 * @return array
 	 */
 	public function plugin_action_links( $links ) {
-		$links[] = '<a href="' . get_admin_url( null, 'admin.php?page=cookie-law-info' ) . '">' . esc_html__( 'Settings', 'faz-cookie-manager' ) . '</a>';
+		$links[] = '<a href="' . get_admin_url( null, 'admin.php?page=faz-cookie-manager' ) . '">' . esc_html__( 'Settings', 'faz-cookie-manager' ) . '</a>';
 		return array_reverse( $links );
 	}
 }
