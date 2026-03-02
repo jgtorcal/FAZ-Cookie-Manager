@@ -31,7 +31,7 @@ Most cookie consent plugins follow the same pattern: a free version with cripple
 ## Screenshots
 
 ### Cookie Consent Banner
-GDPR-compliant banner with Customise, Reject All, and Accept All buttons. Appears on first visit, fully responsive and keyboard accessible.
+GDPR-compliant banner with Customize, Reject All, and Accept All buttons. Appears on first visit, fully responsive and keyboard accessible.
 
 ![Cookie consent banner](assets/screenshots/screenshot-1.png)
 
@@ -120,7 +120,7 @@ Global controls: enable/disable banner, exclude pages, consent log retention, sc
 - WordPress 5.0+
 - PHP 7.4+
 - MySQL/MariaDB
-- No external services required
+- No external services required (except optional: GitHub for cookie database updates, ip-api.com for geolocation fallback)
 
 ---
 

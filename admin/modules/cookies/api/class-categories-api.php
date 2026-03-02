@@ -170,7 +170,7 @@ class Categories_API extends API_Controller {
 
 		try {
 			if ( ! isset( $request['categories'] ) ) {
-				return new WP_Error( 'fazcookie_rest_invalid_data', __( 'No data specified to create/edit categories', 'faz-cookie-manager' ), array( 'status' => 404 ) );
+				return new WP_Error( 'fazcookie_rest_invalid_data', __( 'No data specified to create/edit categories', 'faz-cookie-manager' ), array( 'status' => 400 ) );
 			}
 			if ( ! defined( 'FAZ_BULK_REQUEST' ) ) {
 				define( 'FAZ_BULK_REQUEST', true );

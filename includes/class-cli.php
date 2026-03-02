@@ -88,7 +88,7 @@ class CLI {
 		if ( defined( 'FAZ_VERSION' ) ) {
 			$this->version = FAZ_VERSION;
 		} else {
-			$this->version = '3.4.0';
+			$this->version = '1.0.5';
 		}
 		$this->plugin_name = 'faz-cookie-manager';
 

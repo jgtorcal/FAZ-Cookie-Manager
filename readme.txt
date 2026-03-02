@@ -51,7 +51,7 @@ Most cookie consent plugins follow the same pattern: a free version with cripple
 4. Enable Google Consent Mode or IAB TCF if you use advertising tools
 5. Monitor consent analytics on the dashboard
 
-All data stays on your WordPress database. No external calls, no tracking, no cloud dependencies.
+All data stays on your WordPress database. No tracking, no cloud dependencies. The only external calls are to GitHub (Open Cookie Database updates) and ip-api.com (optional geolocation fallback).
 
 == Installation ==
 
@@ -105,7 +105,7 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 
 == Screenshots ==
 
-1. **Cookie consent banner** -- GDPR-compliant banner with Customise, Reject All, and Accept All buttons. Appears on first visit, fully responsive.
+1. **Cookie consent banner** -- GDPR-compliant banner with Customize, Reject All, and Accept All buttons. Appears on first visit, fully responsive.
 2. **Dashboard** -- Analytics overview with pageviews chart, consent distribution (accept/reject rates), and quick links to all sections.
 3. **Cookie Banner editor** -- Customize layout, position, theme, regulation type (GDPR/CCPA/both), with live preview on the right side. Includes tabs for Content, Colours, Buttons, Preference Center, and Advanced settings.
 4. **Cookies management** -- View all detected cookies organized by category (Necessary, Functional, Analytics, Performance, Advertisement). Edit, delete, or add cookies manually. Includes Open Cookie Database integration with 2,242 cookie definitions.

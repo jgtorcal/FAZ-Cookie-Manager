@@ -256,6 +256,10 @@
 		setVal('faz-b-btn-settings-label', btnLabels.settings || '');
 		setVal('faz-b-btn-readmore-label', btnLabels.readMore || '');
 
+		// Cookie policy link
+		var privacyLink = notice.privacyLink || '';
+		setVal('faz-b-privacy-link', privacyLink);
+
 		// Preference center
 		var pref = (c.preferenceCenter && c.preferenceCenter.elements) || {};
 		setVal('faz-b-pref-title', pref.title || '');
@@ -284,6 +288,9 @@
 		c.notice.elements.buttons.elements.reject = getVal('faz-b-btn-reject-label');
 		c.notice.elements.buttons.elements.settings = getVal('faz-b-btn-settings-label');
 		c.notice.elements.buttons.elements.readMore = getVal('faz-b-btn-readmore-label');
+
+		// Cookie policy link (fallback to /cookie-policy if empty)
+		c.notice.elements.privacyLink = getVal('faz-b-privacy-link') || '/cookie-policy';
 
 		// Preference center
 		if (!c.preferenceCenter) c.preferenceCenter = { elements: {} };

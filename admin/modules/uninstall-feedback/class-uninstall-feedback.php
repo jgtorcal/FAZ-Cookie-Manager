@@ -250,7 +250,7 @@ class Uninstall_Feedback extends Modules {
 						<?php endforeach; ?>
 					</ul>
 					<div class="faz-uninstall-feedback-privacy-policy">
-						<?php esc_html__( "We do not collect any personal data when you submit this form. It's your feedback that we value.", 'faz-cookie-manager' ); ?>
+						<?php echo esc_html__( "We do not collect any personal data when you submit this form. It's your feedback that we value.", 'faz-cookie-manager' ); ?>
 						<a href="https://fabiodalez.it/privacy-policy/" target="_blank"><?php echo esc_html__( 'Privacy Policy', 'faz-cookie-manager' ); ?></a>
 					</div>
 				</div>

@@ -176,6 +176,11 @@ defined( 'ABSPATH' ) || exit;
 						<label>Read More Link</label>
 						<input type="text" class="faz-input" id="faz-b-btn-readmore-label" placeholder="Cookie Policy">
 					</div>
+					<div class="faz-form-group">
+						<label>Cookie Policy URL</label>
+						<input type="text" class="faz-input" id="faz-b-privacy-link" placeholder="/cookie-policy">
+						<div class="faz-help">URL for the Read More / Cookie Policy link. Default: <code>/cookie-policy</code></div>
+					</div>
 				</div>
 			</div>
 		</div>

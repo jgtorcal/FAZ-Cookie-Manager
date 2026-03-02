@@ -23,6 +23,11 @@ use FazCookie\Includes\Notice;
 class Admin {
 
 	/**
+	 * Admin menu slug prefix.
+	 */
+	private const ADMIN_SLUG = 'faz-cookie-manager';
+
+	/**
 	 * The version of this plugin.
 	 *
 	 * @since    3.0.0
@@ -166,37 +171,37 @@ class Admin {
 		return array(
 			'dashboard'    => array(
 				'title' => __( 'Dashboard', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager',
+				'slug'  => self::ADMIN_SLUG,
 				'view'  => 'dashboard',
 			),
 			'banner'       => array(
 				'title' => __( 'Cookie Banner', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-banner',
+				'slug'  => self::ADMIN_SLUG . '-banner',
 				'view'  => 'banner',
 			),
 			'cookies'      => array(
 				'title' => __( 'Cookies', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-cookies',
+				'slug'  => self::ADMIN_SLUG . '-cookies',
 				'view'  => 'cookies',
 			),
 			'consent-logs' => array(
 				'title' => __( 'Consent Logs', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-consent-logs',
+				'slug'  => self::ADMIN_SLUG . '-consent-logs',
 				'view'  => 'consent-logs',
 			),
 			'gcm'          => array(
 				'title' => __( 'Google Consent Mode', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-gcm',
+				'slug'  => self::ADMIN_SLUG . '-gcm',
 				'view'  => 'gcm',
 			),
 			'languages'    => array(
 				'title' => __( 'Languages', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-languages',
+				'slug'  => self::ADMIN_SLUG . '-languages',
 				'view'  => 'languages',
 			),
 			'settings'     => array(
 				'title' => __( 'Settings', 'faz-cookie-manager' ),
-				'slug'  => 'faz-cookie-manager-settings',
+				'slug'  => self::ADMIN_SLUG . '-settings',
 				'view'  => 'settings',
 			),
 		);
@@ -294,33 +299,6 @@ class Admin {
 		}
 	}
 
-	/**
-	 * Load setup wizard on first installation of the plugin.
-	 *
-	 * @return void
-	 */
-	public function load_setup() {
-		$settings     = new \FazCookie\Admin\Modules\Settings\Includes\Settings();
-		$step         = $settings->get( 'onboarding', 'step' );
-		$do_redirect  = true;
-		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : false; // phpcs:ignore WordPress.Security.NonceVerification
-		if ( false !== strpos( $current_page, 'faz-cookie-manager' ) ) {
-			$is_onboarding_path = 'faz-cookie-manager-wizard' === $current_page;
-
-			if ( wp_doing_ajax() || is_network_admin() || ! current_user_can( 'manage_options' ) ) {
-				$do_redirect = false;
-			}
-
-			if ( $is_onboarding_path || 0 !== absint( $step ) ) {
-				$do_redirect = false;
-			}
-
-			if ( $do_redirect ) {
-				wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager-wizard' ) );
-				exit;
-			}
-		}
-	}
 
 	/**
 	 * Prepare shortcodes for banner preview.
@@ -356,7 +334,7 @@ class Admin {
 	 */
 	public function admin_menu() {
 		$capability = 'manage_options';
-		$parent     = 'faz-cookie-manager';
+		$parent     = self::ADMIN_SLUG;
 
 		// Main menu page (Dashboard).
 		add_menu_page(
@@ -388,7 +366,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_page() {
-		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'faz-cookie-manager'; // phpcs:ignore WordPress.Security.NonceVerification
+		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : self::ADMIN_SLUG; // phpcs:ignore WordPress.Security.NonceVerification
 
 		$faz_page_title = '';
 		$faz_page_slug  = 'dashboard';
@@ -534,7 +512,7 @@ class Admin {
 	 * @return void
 	 */
 	public function hide_admin_notices() {
-		if ( empty( $_REQUEST['page'] ) || ! preg_match( '/faz-cookie-manager/', esc_html( wp_unslash( $_REQUEST['page'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( empty( $_REQUEST['page'] ) || ! preg_match( '/' . preg_quote( self::ADMIN_SLUG, '/' ) . '/', esc_html( wp_unslash( $_REQUEST['page'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			return;
 		}
 		global $wp_filter;
@@ -580,7 +558,7 @@ class Admin {
 		if ( wp_doing_ajax() || is_network_admin() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::ADMIN_SLUG ) );
 		exit;
 	}
 
@@ -602,7 +580,8 @@ class Admin {
 	 * @return void
 	 */
 	public function redirect() {
-		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::ADMIN_SLUG ) );
+		exit;
 	}
 
 	/**
@@ -612,7 +591,7 @@ class Admin {
 	 * @return array
 	 */
 	public function plugin_action_links( $links ) {
-		$links[] = '<a href="' . get_admin_url( null, 'admin.php?page=faz-cookie-manager' ) . '">' . esc_html__( 'Settings', 'faz-cookie-manager' ) . '</a>';
+		$links[] = '<a href="' . get_admin_url( null, 'admin.php?page=' . self::ADMIN_SLUG ) . '">' . esc_html__( 'Settings', 'faz-cookie-manager' ) . '</a>';
 		return array_reverse( $links );
 	}
 }

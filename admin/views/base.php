@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
 		<span class="faz-top-nav-brand">FAZ Cookie</span>
 		<ul class="faz-top-nav-menu">
 			<?php foreach ( $faz_nav_items as $nav_key => $nav_item ) :
-				$is_current = ( $faz_page_slug === $nav_key ) || ( 'dashboard' === $nav_key && 'faz-cookie-manager' === $faz_page_slug );
+				$is_current = ( $faz_page_slug === $nav_key ) || ( 'dashboard' === $nav_key && $faz_nav_items['dashboard']['slug'] === $faz_page_slug );
 			?>
 				<li<?php echo $is_current ? ' class="current"' : ''; ?>>
 					<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $nav_item['slug'] ) ); ?>"<?php echo $is_current ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $nav_item['label'] ); ?></a>

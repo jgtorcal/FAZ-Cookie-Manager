@@ -93,6 +93,7 @@ class Upgrade extends Modules {
 			)
 		);
 		wp_safe_redirect( admin_url( 'admin.php?page=faz-cookie-manager' ) );
+		exit;
 	}
 
 	/**
@@ -519,13 +520,6 @@ class Upgrade extends Modules {
 			return;
 		}
 		if ( true === $status ) {
-			add_filter(
-				'faz_admin_scripts_global',
-				function( $config ) {
-					$config['legacyURL'] = esc_attr( wp_nonce_url( add_query_arg( 'revert', 'true', admin_url( 'admin.php?page=faz-cookie-manager' ) ), 'revert', '_wpnonce' ) );
-					return $config;
-				}
-			);
 			$date   = date_i18n( 'M d,Y', $expiry );
 			$notice = Notice::get_instance();
 			$notice->add(
@@ -581,5 +575,6 @@ class Upgrade extends Modules {
 		$settings->update( $options );
 		delete_option( 'faz_cookie_consent_lite_db_version' );
 		wp_safe_redirect( admin_url( 'edit.php?post_type=cookielawinfo&page=faz-cookie-manager' ) );
+		exit;
 	}
 }
