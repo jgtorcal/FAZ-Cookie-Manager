@@ -179,7 +179,7 @@ defined( 'ABSPATH' ) || exit;
 					<div class="faz-form-group">
 						<label>Cookie Policy URL</label>
 						<input type="text" class="faz-input" id="faz-b-privacy-link" placeholder="/cookie-policy">
-						<div class="faz-help">URL for the Read More / Cookie Policy link. Default: <code>/cookie-policy</code></div>
+						<div class="faz-help">Relative (<code>/cookie-policy</code>) or absolute (<code>https://example.com/privacy</code>). Default: <code>/cookie-policy</code></div>
 					</div>
 				</div>
 			</div>
