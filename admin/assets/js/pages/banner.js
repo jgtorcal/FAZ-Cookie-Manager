@@ -189,6 +189,8 @@
 		var revisit = config.revisitConsent || {};
 		setChecked('faz-b-revisit-toggle', getStatus(revisit));
 		setVal('faz-b-revisit-position', revisit.position || 'bottom-left');
+		var revisitStyles = revisit.styles || {};
+		setColor('faz-b-revisit-bg', revisitStyles['background-color'] || '#0056A7');
 
 		// Behaviours
 		setChecked('faz-b-reload-toggle', b.reloadBannerOnAccept && b.reloadBannerOnAccept.status);
@@ -436,6 +438,8 @@
 		if (!props.config.revisitConsent) props.config.revisitConsent = {};
 		props.config.revisitConsent.status = isChecked('faz-b-revisit-toggle');
 		props.config.revisitConsent.position = getVal('faz-b-revisit-position');
+		if (!props.config.revisitConsent.styles) props.config.revisitConsent.styles = {};
+		props.config.revisitConsent.styles['background-color'] = getColor('faz-b-revisit-bg');
 
 		// Behaviours
 		if (!props.behaviours) props.behaviours = {};
@@ -636,7 +640,7 @@
 		var c = contents[currentLang] || contents[Object.keys(contents)[0]] || {};
 		var noticeEl = (c.notice && c.notice.elements) || {};
 		var label = (noticeEl.buttons && noticeEl.buttons.elements && noticeEl.buttons.elements.readMore) || '';
-		var href = noticeEl.privacyLink || getVal('faz-b-privacy-link') || '/cookie-policy';
+		var href = (noticeEl.privacyLink || getVal('faz-b-privacy-link') || '').trim() || '/cookie-policy';
 		if (!label) return;
 
 		// Build readmore element via DOM API (avoids XSS from unescaped values)

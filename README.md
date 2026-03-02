@@ -93,6 +93,8 @@ Global controls: enable/disable banner, exclude pages, consent log retention, sc
 | WCAG 2.1 AA | Partial | Keyboard navigation, focus indicators, ARIA labels |
 | WP Consent API | Compliant | Registered via `wp_consent_api_registered_` filter |
 
+> **Note:** Compliance status depends on correct plugin configuration for your specific use case. This table is not legal advice. Consult a qualified legal professional for your jurisdiction.
+
 ### Automated Compliance Tests
 
 21 Playwright tests verify compliance at runtime:

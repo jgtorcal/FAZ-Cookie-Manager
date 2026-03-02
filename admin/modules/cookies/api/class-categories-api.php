@@ -227,13 +227,13 @@ class Categories_API extends API_Controller {
 					'readonly'    => true,
 				),
 				'date_created'       => array(
-					'description' => __( 'The date the cookie was created, as GMT.', 'faz-cookie-manager' ),
+					'description' => __( 'The date the category was created, as GMT.', 'faz-cookie-manager' ),
 					'type'        => 'date-time',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'date_modified'      => array(
-					'description' => __( 'The date the cookie was last modified, as GMT.', 'faz-cookie-manager' ),
+					'description' => __( 'The date the category was last modified, as GMT.', 'faz-cookie-manager' ),
 					'type'        => 'date-time',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
@@ -278,7 +278,7 @@ class Categories_API extends API_Controller {
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 				),
-				'cookies'            => array(
+				'cookie_list'        => array(
 					'description' => __( 'List of cookies in this category.', 'faz-cookie-manager' ),
 					'type'        => 'object',
 					'context'     => array( 'view' ),

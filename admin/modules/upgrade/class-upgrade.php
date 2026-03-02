@@ -537,8 +537,8 @@ class Upgrade extends Modules {
 	 * @return string
 	 */
 	private function get_readmore_link() {
-		if ( $this->settings['button_2_url_type'] === 'url' ) {
-			return isset( $this->settings['button_2_url'] ) ? $this->settings['button_2_url'] : '';
+		if ( isset( $this->settings['button_2_url_type'] ) && $this->settings['button_2_url_type'] === 'url' ) {
+			return isset( $this->settings['button_2_url'] ) ? esc_url_raw( $this->settings['button_2_url'] ) : '';
 		} else {
 			$page = isset( $this->settings['button_2_page'] ) ? intval( $this->settings['button_2_page'] ) : false;
 

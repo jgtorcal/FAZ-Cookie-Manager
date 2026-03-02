@@ -284,7 +284,7 @@ La non conformità alle regole sui cookie può comportare sanzioni significative
 2. Nessuna chiara indicazione di quale comando permetta la navigazione senza cookie non tecnici
 3. Richiesta di consenso per cookie tecnici (non richiesto dalla normativa!)
 4. Messaggio "Devi accettare almeno i cookie tecnici" (i cookie tecnici non richiedono consenso!)
-5. Banner riproposto ad ogni accesso dopo il rifiuto (invasivo, viola la regola dei 6 mesi)
+5. Banner riproposto a ogni accesso dopo il rifiuto (invasivo, viola la regola dei 6 mesi)
 6. Stesso numero di cookie installati indipendentemente dalla scelta (nessun blocco effettivo)
 
 ---

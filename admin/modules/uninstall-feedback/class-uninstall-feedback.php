@@ -237,14 +237,14 @@ class Uninstall_Feedback extends Modules {
 					</ul>
 					<div class="faz-uninstall-feedback-privacy-policy">
 						<?php echo esc_html__( "We do not collect any personal data when you submit this form. It's your feedback that we value.", 'faz-cookie-manager' ); ?>
-						<a href="https://fabiodalez.it/privacy-policy/" target="_blank"><?php echo esc_html__( 'Privacy Policy', 'faz-cookie-manager' ); ?></a>
+						<a href="https://fabiodalez.it/privacy-policy/" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Privacy Policy', 'faz-cookie-manager' ); ?></a>
 					</div>
 				</div>
 				<div class="faz-modal-footer">
 					<button class="button-primary faz-modal-submit">
 						<?php echo esc_html__( 'Submit & Deactivate', 'faz-cookie-manager' ); ?>
 					</button>
-					<a class="faz-goto-support" href="https://fabiodalez.it/support/" target="_blank">
+					<a class="faz-goto-support" href="https://fabiodalez.it/support/" target="_blank" rel="noopener noreferrer">
 						<span class="dashicons dashicons-external"></span>
 						<?php echo esc_html__( 'Go to support', 'faz-cookie-manager' ); ?>
 					</a>
@@ -484,14 +484,14 @@ class Uninstall_Feedback extends Modules {
 	/**
 	 * Send uninstall reason to server
 	 *
-	 * @param array $request request data.
-	 * @return void
+	 * @param \WP_REST_Request $request request data.
+	 * @return \WP_Error|\WP_REST_Response
 	 */
 	public function send_uninstall_reason( $request ) {
 		if ( ! isset( $request['reason_id'] ) ) {
-			wp_send_json_error();
+			return new \WP_Error( 'missing_reason', __( 'Reason ID is required.', 'faz-cookie-manager' ), array( 'status' => 400 ) );
 		}
 		// External feedback endpoint disabled — data stays local.
-		wp_send_json_success();
+		return new \WP_REST_Response( array( 'success' => true ), 200 );
 	}
 }
