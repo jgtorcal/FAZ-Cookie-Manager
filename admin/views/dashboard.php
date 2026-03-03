@@ -40,10 +40,26 @@ defined( 'ABSPATH' ) || exit;
 		</div>
 	</div>
 
-	<div class="faz-grid faz-grid-2" style="margin-top:20px;">
+	<div class="faz-chart-filter-bar" style="margin-top:20px;">
+		<div class="faz-chart-filter-presets">
+			<button type="button" class="faz-chart-filter-btn" data-days="1">1D</button>
+			<button type="button" class="faz-chart-filter-btn active" data-days="7">7D</button>
+			<button type="button" class="faz-chart-filter-btn" data-days="30">30D</button>
+			<button type="button" class="faz-chart-filter-btn" data-days="365">1Y</button>
+			<button type="button" class="faz-chart-filter-btn" data-days="0">All</button>
+		</div>
+		<div class="faz-chart-filter-custom">
+			<input type="date" id="faz-filter-from" class="faz-input">
+			<span style="color:var(--faz-text-muted)">&mdash;</span>
+			<input type="date" id="faz-filter-to" class="faz-input">
+			<button type="button" class="faz-btn faz-btn-sm faz-btn-secondary" id="faz-filter-apply">Apply</button>
+		</div>
+	</div>
+
+	<div class="faz-grid faz-grid-2" style="margin-top:12px;">
 		<div class="faz-card">
 			<div class="faz-card-header">
-				<h3>Pageviews — Last 7 Days</h3>
+				<h3>Pageviews &mdash; <span id="faz-chart-range-label">Last 7 Days</span></h3>
 			</div>
 			<div class="faz-card-body">
 				<div class="faz-chart-wrap">
@@ -58,7 +74,7 @@ defined( 'ABSPATH' ) || exit;
 
 		<div class="faz-card">
 			<div class="faz-card-header">
-				<h3>Consent Distribution</h3>
+				<h3>Consent Distribution &mdash; <span id="faz-consent-range-label">Last 7 Days</span></h3>
 			</div>
 			<div class="faz-card-body">
 				<div class="faz-chart-wrap">

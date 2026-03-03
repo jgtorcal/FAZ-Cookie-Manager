@@ -149,29 +149,53 @@ class Controller {
 	}
 
 	/**
+	 * Build a date-range WHERE clause and params array.
+	 *
+	 * @param int         $days Number of days to look back. 0 = all time.
+	 * @param string|null $from Start date (Y-m-d).
+	 * @param string|null $to   End date (Y-m-d), inclusive.
+	 * @return array{string, array<string>} [ $where_sql, $params ]
+	 */
+	private function build_date_clause( $days, $from = null, $to = null ) {
+		if ( $from && $to && strtotime( $from ) && strtotime( $to ) ) {
+			$end = gmdate( 'Y-m-d', strtotime( $to . ' +1 day' ) );
+			return array( 'AND created_at >= %s AND created_at < %s', array( $from, $end ) );
+		}
+
+		$days = absint( $days );
+		if ( 0 === $days ) {
+			return array( '', array() );
+		}
+
+		$cutoff = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
+		return array( 'AND created_at >= %s', array( $cutoff ) );
+	}
+
+	/**
 	 * Get pageview chart data grouped by day for the last N days.
 	 *
-	 * @param int $days Number of days to look back. Default 7.
+	 * @param int         $days Number of days to look back. Default 7.
+	 * @param string|null $from Start date (Y-m-d).
+	 * @param string|null $to   End date (Y-m-d), inclusive.
 	 * @return array
 	 */
-	public function get_pageviews( $days = 7 ) {
+	public function get_pageviews( $days = 7, $from = null, $to = null ) {
 		global $wpdb;
 
-		$table   = $this->get_table_name();
-		$days    = absint( $days );
-		$cutoff  = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
+		$table = $this->get_table_name();
+		list( $date_clause, $date_params ) = $this->build_date_clause( $days, $from, $to );
 
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT DATE(created_at) as date, COUNT(*) as views
-				FROM {$table}
-				WHERE event_type = 'pageview' AND created_at >= %s
-				GROUP BY DATE(created_at)
-				ORDER BY date ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$cutoff
-			),
-			ARRAY_A
-		);
+		$sql = "SELECT DATE(created_at) as date, COUNT(*) as views
+			FROM {$table}
+			WHERE event_type = 'pageview' {$date_clause}
+			GROUP BY DATE(created_at)
+			ORDER BY date ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		if ( ! empty( $date_params ) ) {
+			$results = $wpdb->get_results( $wpdb->prepare( $sql, $date_params ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		} else {
+			$results = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
 
 		$total_views = 0;
 		$data        = array();
@@ -199,26 +223,27 @@ class Controller {
 	/**
 	 * Get banner interaction statistics for the last N days.
 	 *
-	 * @param int $days Number of days to look back. Default 30.
+	 * @param int         $days Number of days to look back. Default 30.
+	 * @param string|null $from Start date (Y-m-d).
+	 * @param string|null $to   End date (Y-m-d), inclusive.
 	 * @return array
 	 */
-	public function get_banner_stats( $days = 30 ) {
+	public function get_banner_stats( $days = 30, $from = null, $to = null ) {
 		global $wpdb;
 
-		$table   = $this->get_table_name();
-		$days    = absint( $days );
-		$cutoff  = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
+		$table = $this->get_table_name();
+		list( $date_clause, $date_params ) = $this->build_date_clause( $days, $from, $to );
 
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT event_type, COUNT(*) as count
-				FROM {$table}
-				WHERE event_type LIKE 'banner%%' AND created_at >= %s
-				GROUP BY event_type", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$cutoff
-			),
-			ARRAY_A
-		);
+		$sql = "SELECT event_type, COUNT(*) as count
+			FROM {$table}
+			WHERE event_type LIKE 'banner%%' {$date_clause}
+			GROUP BY event_type"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		if ( ! empty( $date_params ) ) {
+			$results = $wpdb->get_results( $wpdb->prepare( $sql, $date_params ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		} else {
+			$results = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
 
 		$stats = array(
 			'banner_view'     => 0,

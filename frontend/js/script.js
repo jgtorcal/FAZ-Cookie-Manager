@@ -543,9 +543,16 @@ function _fazHideBanner() {
     const notice = _fazGetBanner();
     notice && notice.classList.add('faz-hide');
 }
+var _fazBannerLoadedFired = false;
 function _fazShowBanner() {
     const notice = _fazGetBanner();
-    notice && notice.classList.remove('faz-hide');
+    if (notice) {
+        notice.classList.remove('faz-hide');
+        if (!_fazBannerLoadedFired) {
+            _fazBannerLoadedFired = true;
+            document.dispatchEvent(new CustomEvent("fazcookie_banner_loaded"));
+        }
+    }
 }
 function _fazHideOverLay() {
     const overlay = document.querySelector('.faz-overlay');

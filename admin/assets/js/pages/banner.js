@@ -815,11 +815,14 @@
 		}
 
 		// Preference center toggles
+		// NOTE: In admin preview, .faz-always-active is on ALL categories in the
+		// template, so we detect "necessary" by element ID instead. If the slug
+		// changes or multiple necessary categories are added, update the ID checks below.
 		host.querySelectorAll('.faz-switch input[type="checkbox"]').forEach(function (cb) {
 			applyPreviewToggleState(cb, cb.id === 'fazSwitchnecessary', activeColor, inactiveColor);
 		});
 
-		// Inline category preview toggles
+		// Inline category preview toggles (same ID-based detection)
 		var catActiveColor = getColor('faz-b-catprev-toggle-active') || activeColor;
 		var catInactiveColor = getColor('faz-b-catprev-toggle-inactive') || inactiveColor;
 		host.querySelectorAll('input[id^="fazCategoryDirect"]').forEach(function (cb) {

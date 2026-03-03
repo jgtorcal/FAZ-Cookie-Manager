@@ -103,6 +103,14 @@ class Api extends Rest_Controller {
 							'default'           => 7,
 							'sanitize_callback' => 'absint',
 						),
+						'from' => array(
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'to' => array(
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
 					),
 				),
 			)
@@ -122,6 +130,14 @@ class Api extends Rest_Controller {
 							'type'              => 'integer',
 							'default'           => 30,
 							'sanitize_callback' => 'absint',
+						),
+						'from' => array(
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'to' => array(
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
 						),
 					),
 				),
@@ -180,7 +196,9 @@ class Api extends Rest_Controller {
 	 */
 	public function get_pageviews( $request ) {
 		$days = $request->get_param( 'days' );
-		$data = Controller::get_instance()->get_pageviews( $days );
+		$from = $request->get_param( 'from' );
+		$to   = $request->get_param( 'to' );
+		$data = Controller::get_instance()->get_pageviews( $days, $from, $to );
 
 		return rest_ensure_response(
 			array(
@@ -199,7 +217,9 @@ class Api extends Rest_Controller {
 	 */
 	public function get_banner_stats( $request ) {
 		$days  = $request->get_param( 'days' );
-		$stats = Controller::get_instance()->get_banner_stats( $days );
+		$from  = $request->get_param( 'from' );
+		$to    = $request->get_param( 'to' );
+		$stats = Controller::get_instance()->get_banner_stats( $days, $from, $to );
 
 		return rest_ensure_response( $stats );
 	}

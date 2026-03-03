@@ -1071,6 +1071,66 @@
 	opacity: 0.3;
 }
 
+/* ── Chart Filter Bar ── */
+.faz-chart-filter-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.faz-chart-filter-presets {
+	display: flex;
+	gap: 4px;
+}
+.faz-chart-filter-btn {
+	padding: 6px 12px;
+	border: 1px solid var(--faz-border);
+	background: var(--faz-card);
+	color: var(--faz-text-muted);
+	border-radius: var(--faz-radius);
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	font-family: var(--faz-font);
+	transition: all 0.15s;
+}
+.faz-chart-filter-btn:hover {
+	border-color: var(--faz-primary);
+	color: var(--faz-primary);
+}
+.faz-chart-filter-btn.active {
+	background: var(--faz-primary);
+	color: #fff;
+	border-color: var(--faz-primary);
+}
+.faz-chart-filter-custom {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.faz-chart-filter-custom .faz-input {
+	width: 140px;
+	padding: 5px 8px;
+	font-size: 13px;
+}
+@media (max-width: 600px) {
+	.faz-chart-filter-bar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.faz-chart-filter-presets {
+		justify-content: center;
+	}
+	.faz-chart-filter-custom {
+		justify-content: center;
+	}
+	.faz-chart-filter-custom .faz-input {
+		flex: 1;
+		min-width: 0;
+	}
+}
+
 /* ── Card Section Divider ── */
 .faz-card-section {
 	padding-top: 16px;

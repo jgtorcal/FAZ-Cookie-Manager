@@ -1,17 +1,124 @@
 /**
  * FAZ Cookie Manager — Dashboard Page JS
  * Stats, line chart (pageviews), donut chart (consent distribution).
+ * Filter bar: presets (1D, 7D, 30D, 1Y, All) + custom date range.
  */
 (function () {
 	'use strict';
 
+	var currentFilter = { days: 7, from: null, to: null };
+
 	FAZ.ready(function () {
-		loadStats();
-		loadChart();
+		reloadDashboard();
+		initFilterBar();
 	});
 
-	function loadStats() {
-		FAZ.get('pageviews/banner-stats').then(function (data) {
+	/* ── Filter bar ── */
+
+	function initFilterBar() {
+		// Preset buttons
+		var presetBtns = document.querySelectorAll('.faz-chart-filter-btn');
+		presetBtns.forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				var days = parseInt(btn.getAttribute('data-days'), 10);
+				currentFilter = { days: days, from: null, to: null };
+
+				// Toggle active
+				presetBtns.forEach(function (b) { b.classList.remove('active'); });
+				btn.classList.add('active');
+
+				// Clear custom inputs
+				var fromEl = document.getElementById('faz-filter-from');
+				var toEl = document.getElementById('faz-filter-to');
+				if (fromEl) fromEl.value = '';
+				if (toEl) toEl.value = '';
+
+				updateRangeLabel();
+				reloadDashboard();
+			});
+		});
+
+		// Custom Apply button
+		var applyBtn = document.getElementById('faz-filter-apply');
+		if (applyBtn) {
+			applyBtn.addEventListener('click', function () {
+				var fromEl = document.getElementById('faz-filter-from');
+				var toEl = document.getElementById('faz-filter-to');
+				var from = fromEl ? fromEl.value : '';
+				var to = toEl ? toEl.value : '';
+
+				if (!from || !to) {
+					FAZ.notify('Please select both start and end dates.', 'error');
+					return;
+				}
+				if (from > to) {
+					FAZ.notify('Start date must be before end date.', 'error');
+					return;
+				}
+
+				currentFilter = { days: 0, from: from, to: to };
+
+				// Remove preset active
+				presetBtns.forEach(function (b) { b.classList.remove('active'); });
+
+				updateRangeLabel();
+				reloadDashboard();
+			});
+		}
+	}
+
+	function updateRangeLabel() {
+		var text;
+
+		if (currentFilter.from && currentFilter.to) {
+			text = formatDateRange(currentFilter.from, currentFilter.to);
+		} else {
+			var map = {
+				1: 'Last 24 Hours',
+				7: 'Last 7 Days',
+				30: 'Last 30 Days',
+				365: 'Last Year',
+				0: 'All Time'
+			};
+			text = map[currentFilter.days] || ('Last ' + currentFilter.days + ' Days');
+		}
+
+		var ids = ['faz-chart-range-label', 'faz-consent-range-label'];
+		ids.forEach(function (id) {
+			var el = document.getElementById(id);
+			if (el) el.textContent = text;
+		});
+	}
+
+	function formatDateRange(from, to) {
+		var opts = { month: 'short', day: 'numeric' };
+		var optsYear = { month: 'short', day: 'numeric', year: 'numeric' };
+		var d1 = new Date(from + 'T00:00:00');
+		var d2 = new Date(to + 'T00:00:00');
+
+		if (d1.getFullYear() === d2.getFullYear()) {
+			return d1.toLocaleDateString('en-US', opts) + ' – ' + d2.toLocaleDateString('en-US', optsYear);
+		}
+		return d1.toLocaleDateString('en-US', optsYear) + ' – ' + d2.toLocaleDateString('en-US', optsYear);
+	}
+
+	function buildParams() {
+		if (currentFilter.from && currentFilter.to) {
+			return { from: currentFilter.from, to: currentFilter.to };
+		}
+		return { days: currentFilter.days };
+	}
+
+	function reloadDashboard() {
+		var params = buildParams();
+		loadStats(params);
+		loadChart(params);
+	}
+
+	/* ── Stats + Donut ── */
+
+	function loadStats(params) {
+		FAZ.get('pageviews/banner-stats', params).then(function (data) {
 			var banner   = data.banner_view || 0;
 			var accepted = data.banner_accept || 0;
 			var rejected = data.banner_reject || 0;
@@ -22,15 +129,23 @@
 			document.getElementById('faz-stat-accept').textContent = total > 0 ? Math.round((accepted / total) * 100) + '%' : '--';
 			document.getElementById('faz-stat-reject').textContent = total > 0 ? Math.round((rejected / total) * 100) + '%' : '--';
 
+			resetCanvas('faz-chart-consent');
+			hideEmpty('faz-consent-empty');
 			drawConsentDonut(accepted, rejected);
 		}).catch(function () {
 			showEmpty('faz-consent-empty');
 		});
 	}
 
-	function loadChart() {
-		FAZ.get('pageviews/chart', { days: 7 }).then(function (data) {
+	/* ── Pageviews Line Chart ── */
+
+	function loadChart(params) {
+		FAZ.get('pageviews/chart', params).then(function (data) {
 			var items = Array.isArray(data) ? data : (data.data || data.items || []);
+
+			resetCanvas('faz-chart-pageviews');
+			hideEmpty('faz-chart-empty');
+
 			if (!items.length) {
 				showEmpty('faz-chart-empty');
 				return;
@@ -43,7 +158,6 @@
 				values.push(item.views || item.count || item.pageviews || 0);
 			});
 
-			// Check if all zeros
 			var hasData = values.some(function (v) { return v > 0; });
 			if (!hasData) {
 				showEmpty('faz-chart-empty');
@@ -56,9 +170,24 @@
 		});
 	}
 
+	/* ── Helpers ── */
+
 	function showEmpty(id) {
 		var el = document.getElementById(id);
 		if (el) el.classList.remove('faz-hidden');
+	}
+
+	function hideEmpty(id) {
+		var el = document.getElementById(id);
+		if (el) el.classList.add('faz-hidden');
+	}
+
+	function resetCanvas(id) {
+		var canvas = document.getElementById(id);
+		if (!canvas || !canvas.getContext) return;
+		var ctx = canvas.getContext('2d');
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
 	}
 
 	/**
