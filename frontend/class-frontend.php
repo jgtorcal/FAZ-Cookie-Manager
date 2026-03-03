@@ -185,19 +185,15 @@ class Frontend {
 			}
 			$css    = isset( $this->template['styles'] ) ? $this->template['styles'] : '';
 
-			// CSS specificity isolation: #faz-consent (100) beats any class-based
-			// page-builder selector (Elementor, Divi, Beaver Builder).  Resets text
-			// properties that builders commonly inject globally; font-size, color,
-			// and font-weight are left to the template CSS / inline styles.
-			$css_reset = '#faz-consent,'
-				. '#faz-consent p,'
-				. '#faz-consent a,'
-				. '#faz-consent span,'
-				. '#faz-consent li,'
-				. '#faz-consent h1,#faz-consent h2,#faz-consent h3,#faz-consent h4,'
-				. '#faz-consent button,'
-				. '#faz-consent label,'
-				. '#faz-consent input{'
+			// CSS specificity isolation against page builders (Elementor, Divi,
+			// Beaver Builder).  Two layers:
+			// 1. Prefix ALL template selectors with #faz-consent (specificity 100+)
+			//    so every rule beats class-based page-builder overrides.
+			// 2. Baseline * reset (specificity 100) for inherited text properties
+			//    that builders inject globally; prefixed template rules (110+)
+			//    override this where needed.
+			$css = $this->boost_css_specificity( $css );
+			$css_reset = '#faz-consent,#faz-consent *,#faz-consent *::before,#faz-consent *::after{'
 				. 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;'
 				. 'letter-spacing:normal;'
 				. 'text-transform:none;'
@@ -815,6 +811,45 @@ class Frontend {
 	 */
 	public function is_wpconsentapi_enabled() {
 		return class_exists( 'WP_CONSENT_API' );
+	}
+
+	/**
+	 * Prefix all CSS selectors with #faz-consent to boost specificity above
+	 * page-builder rules (Elementor, Divi, Beaver Builder).
+	 *
+	 * @param string $css Raw template CSS.
+	 * @return string CSS with all selectors prefixed.
+	 */
+	private function boost_css_specificity( $css ) {
+		if ( empty( $css ) ) {
+			return $css;
+		}
+		return preg_replace_callback(
+			'/([^{}]+?)(\{)/',
+			function ( $m ) {
+				$raw = $m[1];
+				// Skip @-rules (e.g. @media).
+				if ( strpos( $raw, '@' ) !== false ) {
+					return $m[0];
+				}
+				$parts = explode( ',', $raw );
+				$out   = array();
+				foreach ( $parts as $sel ) {
+					$s = trim( $sel );
+					if ( '' === $s ) {
+						continue;
+					}
+					// .faz-consent-container IS the #faz-consent element.
+					if ( strpos( $s, '.faz-consent-container' ) === 0 ) {
+						$out[] = '#faz-consent' . substr( $s, 22 );
+					} else {
+						$out[] = '#faz-consent ' . $s;
+					}
+				}
+				return implode( ',', $out ) . '{';
+			},
+			$css
+		);
 	}
 
 	/**
