@@ -817,16 +817,45 @@ class Frontend {
 	 * Prefix all CSS selectors with #faz-consent to boost specificity above
 	 * page-builder rules (Elementor, Divi, Beaver Builder).
 	 *
+	 * Three cases:
+	 *  1. Container-level selectors (.faz-consent-container, position classes)
+	 *     → compound: #faz-consent.class (no space).
+	 *  2. Sibling elements (overlay, revisit widget, utility .faz-hide)
+	 *     → leave unprefixed (they live outside #faz-consent in the DOM).
+	 *  3. Everything else (descendants inside the banner)
+	 *     → descendant: #faz-consent .class (with space).
+	 *
 	 * @param string $css Raw template CSS.
-	 * @return string CSS with all selectors prefixed.
+	 * @return string CSS with selectors scoped to #faz-consent.
 	 */
 	private function boost_css_specificity( $css ) {
 		if ( empty( $css ) ) {
 			return $css;
 		}
+
+		// Position/state classes applied directly ON .faz-consent-container.
+		$container_classes = array(
+			'.faz-classic-top',
+			'.faz-classic-bottom',
+			'.faz-banner-top',
+			'.faz-banner-bottom',
+			'.faz-box-bottom-left',
+			'.faz-box-bottom-right',
+			'.faz-box-top-left',
+			'.faz-box-top-right',
+		);
+
+		// Classes on sibling elements (outside #faz-consent in the DOM).
+		$sibling_prefixes = array(
+			'.faz-overlay',
+			'.faz-btn-revisit',
+			'.faz-revisit-',
+			'.faz-hide',
+		);
+
 		return preg_replace_callback(
 			'/([^{}]+?)(\{)/',
-			function ( $m ) {
+			function ( $m ) use ( $container_classes, $sibling_prefixes ) {
 				$raw = $m[1];
 				// Skip @-rules (e.g. @media).
 				if ( strpos( $raw, '@' ) !== false ) {
@@ -839,12 +868,40 @@ class Frontend {
 					if ( '' === $s ) {
 						continue;
 					}
-					// .faz-consent-container IS the #faz-consent element.
+
+					// Rule 1: .faz-consent-container → replace with #faz-consent.
 					if ( strpos( $s, '.faz-consent-container' ) === 0 ) {
 						$out[] = '#faz-consent' . substr( $s, 22 );
-					} else {
-						$out[] = '#faz-consent ' . $s;
+						continue;
 					}
+
+					// Rule 2: Container position classes → compound (no space).
+					$matched = false;
+					foreach ( $container_classes as $cls ) {
+						if ( strpos( $s, $cls ) === 0 ) {
+							$out[]   = '#faz-consent' . $s;
+							$matched = true;
+							break;
+						}
+					}
+					if ( $matched ) {
+						continue;
+					}
+
+					// Rule 3: Sibling elements → leave as-is.
+					foreach ( $sibling_prefixes as $pfx ) {
+						if ( strpos( $s, $pfx ) === 0 ) {
+							$out[]   = $s;
+							$matched = true;
+							break;
+						}
+					}
+					if ( $matched ) {
+						continue;
+					}
+
+					// Rule 4: Descendants → prefix with space.
+					$out[] = '#faz-consent ' . $s;
 				}
 				return implode( ',', $out ) . '{';
 			},
