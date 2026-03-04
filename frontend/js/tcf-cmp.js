@@ -1,32 +1,38 @@
 /**
- * FAZ Cookie Manager — IAB TCF v2.3 CMP Stub
+ * FAZ Cookie Manager — IAB TCF v2.3 CMP
  *
  * Provides the window.__tcfapi() surface that ad-tech scripts expect.
  * Maps FAZ consent categories to TCF Purposes and generates a TC string
  * with core segment + mandatory DisclosedVendors segment (TCF v2.3).
  *
- * CMP ID 0 = unregistered / self-hosted.
- * For full TCF compliance users must register with IAB as a CMP.
+ * When GVL data is provided via _fazTcfConfig, encodes real vendor consent
+ * and legitimate interest bitfields based on user category consent.
  */
 (function () {
 	"use strict";
 
-	var CMP_ID      = 0;
-	var CMP_VERSION  = 1;
-	var TCF_VERSION  = 2;
-	var VENDOR_LIST        = 0;  // no vendor list loaded
+	var cfg = window._fazTcfConfig || {};
+
+	var CMP_ID             = cfg.cmpId || 0;
+	var CMP_VERSION        = 1;
+	var TCF_VERSION        = 2;
+	var VENDOR_LIST        = cfg.gvlVersion || 0;
 	var MAX_PURPOSE        = 11; // GVL v3 has 11 standard purposes
 	var TCF_POLICY_VERSION = 5;  // GVL v3 tcfPolicyVersion
-	var BASE64URL    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	var PURPOSE_ONE_TREATMENT = !!cfg.purposeOneTreatment;
+	var BASE64URL          = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+	// Selected vendor IDs and vendor details from server-side GVL.
+	var SELECTED_VENDORS = cfg.selectedVendors || [];
+	var VENDORS          = cfg.vendors || {};
 
 	/**
 	 * Push a value as `length` bits into the bits array (MSB first).
-	 * Handles values > 32 bits by splitting into high/low parts.
 	 */
 	function pushBits(bits, value, length) {
 		if (length > 32) {
 			var highLen = length - 32;
-			var highVal = Math.floor(value / 4294967296); // value / 2^32
+			var highVal = Math.floor(value / 4294967296);
 			pushBits(bits, highVal, highLen);
 			pushBits(bits, value >>> 0, 32);
 			return;
@@ -53,20 +59,14 @@
 		return str;
 	}
 
+	function charTo6(c) {
+		return c.toUpperCase().charCodeAt(0) - 65;
+	}
+
 	// Map FAZ category slugs → TCF Purpose IDs
-	// Purpose 1: Store/access info on device
-	// Purpose 2: Select basic ads
-	// Purpose 3: Create personalised ads profile
-	// Purpose 4: Select personalised ads
-	// Purpose 5: Create personalised content profile
-	// Purpose 6: Select personalised content
-	// Purpose 7: Measure ad performance
-	// Purpose 8: Measure content performance
-	// Purpose 9: Apply market research to generate audience insights
-	// Purpose 10: Develop and improve products
 	var CATEGORY_TO_PURPOSES = {
 		necessary:     [1],
-		functional:    [5, 6],
+		functional:    [5, 6, 11],
 		analytics:     [7, 8, 9, 10],
 		performance:   [8, 9],
 		advertisement: [2, 3, 4, 7]
@@ -102,6 +102,25 @@
 	}
 
 	/**
+	 * Read vendor-level consent from cookie (if present).
+	 * Format: fazVendorConsent=1:yes,2:no,5:yes
+	 */
+	function readVendorConsent() {
+		var vendorConsent = {};
+		var match = document.cookie.match(/fazVendorConsent=([^;]+)/);
+		if (!match) return vendorConsent;
+
+		var pairs = match[1].split(",");
+		for (var i = 0; i < pairs.length; i++) {
+			var kv = pairs[i].split(":");
+			if (kv.length === 2) {
+				vendorConsent[parseInt(kv[0], 10)] = kv[1].trim() === "yes";
+			}
+		}
+		return vendorConsent;
+	}
+
+	/**
 	 * Build purpose consent bit-set from FAZ categories.
 	 * Returns an object { "1": true, "2": false, ... }
 	 */
@@ -110,7 +129,6 @@
 		for (var p = 1; p <= MAX_PURPOSE; p++) {
 			purposes[String(p)] = false;
 		}
-		// Purpose 1 (store/access) — always granted if necessary
 		purposes["1"] = !!categoryConsent.necessary;
 
 		for (var cat in CATEGORY_TO_PURPOSES) {
@@ -126,123 +144,262 @@
 	}
 
 	/**
-	 * Encode a minimal TC string (core segment only).
-	 *
-	 * The TC string is a base64url-encoded bitfield.  We implement just
-	 * enough for the core segment so that callers that inspect the string
-	 * (e.g. Google) can derive purpose consent.
-	 *
-	 * Core segment layout (simplified — we omit vendor consent):
-	 *   Version            6 bits
-	 *   Created            36 bits (deciseconds since 2020-01-01)
-	 *   LastUpdated        36 bits
-	 *   CmpId              12 bits
-	 *   CmpVersion         12 bits
-	 *   ConsentScreen       6 bits
-	 *   ConsentLanguage    12 bits (2 chars × 6 bits)
-	 *   VendorListVersion  12 bits
-	 *   TcfPolicyVersion    6 bits
-	 *   IsServiceSpecific   1 bit  = 1 (site-specific)
-	 *   UseNonStdTexts      1 bit  = 0
-	 *   SpecialFeatureOptIns 12 bits = 0
-	 *   PurposesConsent     24 bits
-	 *   PurposesLI          24 bits = 0
-	 *   PurposeOneTreatment  1 bit = 0
-	 *   PublisherCC         12 bits
-	 *   MaxVendorConsentId 16 bits = 0
-	 *   EncodingType        1 bit  = 0
-	 *   --- total: ~210 bits ≈ 27 bytes
+	 * Build vendor consent map.
+	 * A vendor gets consent=true if:
+	 *  - Explicit vendor consent cookie exists → use it
+	 *  - Otherwise: user consented to ALL purposes that vendor declares under consent basis
+	 */
+	function buildVendorConsent(purposeConsent) {
+		var vendorConsent = {};
+		var explicit = readVendorConsent();
+
+		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
+			var vid = SELECTED_VENDORS[i];
+			var v = VENDORS[vid];
+
+			// Check explicit vendor-level consent first.
+			if (typeof explicit[vid] !== "undefined") {
+				vendorConsent[vid] = explicit[vid];
+				continue;
+			}
+
+			// Derive from purpose consent: vendor gets consent if ALL its
+			// consent-basis purposes are consented.
+			if (!v || !v.purposes || v.purposes.length === 0) {
+				vendorConsent[vid] = true;
+				continue;
+			}
+			var allConsented = true;
+			for (var j = 0; j < v.purposes.length; j++) {
+				if (!purposeConsent[String(v.purposes[j])]) {
+					allConsented = false;
+					break;
+				}
+			}
+			vendorConsent[vid] = allConsented;
+		}
+		return vendorConsent;
+	}
+
+	/**
+	 * Build vendor legitimate interest map.
+	 * LI is auto-established for purposes the vendor declares under legIntPurposes.
+	 */
+	function buildVendorLI(purposeConsent) {
+		var vendorLI = {};
+		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
+			var vid = SELECTED_VENDORS[i];
+			var v = VENDORS[vid];
+			if (!v || !v.legIntPurposes || v.legIntPurposes.length === 0) {
+				vendorLI[vid] = false;
+				continue;
+			}
+			vendorLI[vid] = true;
+		}
+		return vendorLI;
+	}
+
+	/**
+	 * Build PurposesLegitimateInterest bitfield.
+	 * For each purpose 1-24: set bit=1 if ANY selected vendor declares LI for that purpose.
+	 */
+	function buildPurposeLI() {
+		var li = {};
+		for (var p = 1; p <= 24; p++) li[String(p)] = false;
+
+		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
+			var v = VENDORS[SELECTED_VENDORS[i]];
+			if (!v || !v.legIntPurposes) continue;
+			for (var j = 0; j < v.legIntPurposes.length; j++) {
+				li[String(v.legIntPurposes[j])] = true;
+			}
+		}
+		return li;
+	}
+
+	/**
+	 * Encode the DisclosedVendors segment from selected vendor IDs.
+	 * SegmentType=1 (3 bits) + MaxVendorId (16 bits) + IsRangeEncoding=0 (1 bit) + bitfield
+	 */
+	function encodeDisclosedVendorsSegment() {
+		if (SELECTED_VENDORS.length === 0) {
+			return "IAAA"; // fallback: empty DV segment
+		}
+
+		var maxId = 0;
+		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
+			if (SELECTED_VENDORS[i] > maxId) maxId = SELECTED_VENDORS[i];
+		}
+
+		var bits = [];
+		pushBits(bits, 1, 3);      // SegmentType = 1 (DisclosedVendors)
+		pushBits(bits, maxId, 16); // MaxVendorId
+		pushBits(bits, 0, 1);      // IsRangeEncoding = 0 (bitfield)
+
+		// Vendor bitfield: bit N = 1 if vendor N is disclosed.
+		var vendorSet = {};
+		for (var j = 0; j < SELECTED_VENDORS.length; j++) {
+			vendorSet[SELECTED_VENDORS[j]] = true;
+		}
+		for (var n = 1; n <= maxId; n++) {
+			pushBits(bits, vendorSet[n] ? 1 : 0, 1);
+		}
+
+		return bitsToBase64url(bits);
+	}
+
+	/**
+	 * Encode the TC string (core segment + DisclosedVendors).
 	 */
 	function encodeTcString(purposeConsent) {
 		var bits = [];
+		var vendorConsent = buildVendorConsent(purposeConsent);
+		var vendorLI      = buildVendorLI(purposeConsent);
+		var purposeLI     = buildPurposeLI();
 
-		function charTo6(c) {
-			return c.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, ...
-		}
+		var now     = Math.round(Date.now() / 100);
+		var epoch   = Math.round(Date.UTC(2020, 0, 1) / 100);
+		var created = now - epoch;
 
-		var now      = Math.round(Date.now() / 100); // deciseconds
-		var epoch    = Math.round(Date.UTC(2020, 0, 1) / 100);
-		var created  = now - epoch;
+		pushBits(bits, TCF_VERSION, 6);
+		pushBits(bits, created, 36);
+		pushBits(bits, created, 36);
+		pushBits(bits, CMP_ID, 12);
+		pushBits(bits, CMP_VERSION, 12);
+		pushBits(bits, 1, 6); // ConsentScreen
+		var consentLang = cfg.consentLanguage || "EN";
+		pushBits(bits, charTo6(consentLang.charAt(0)), 6);
+		pushBits(bits, charTo6(consentLang.charAt(1)), 6);
+		pushBits(bits, VENDOR_LIST, 12);
+		pushBits(bits, TCF_POLICY_VERSION, 6);
+		pushBits(bits, 1, 1); // IsServiceSpecific = true
+		pushBits(bits, 0, 1); // UseNonStdTexts = false
+		pushBits(bits, 0, 12); // SpecialFeatureOptIns
 
-		pushBits(bits, TCF_VERSION, 6);       // Version
-		pushBits(bits, created, 36);          // Created
-		pushBits(bits, created, 36);          // LastUpdated
-		pushBits(bits, CMP_ID, 12);           // CmpId
-		pushBits(bits, CMP_VERSION, 12);      // CmpVersion
-		pushBits(bits, 1, 6);                 // ConsentScreen
-		var consentLang = (window._fazTcfConfig && window._fazTcfConfig.consentLanguage) || "EN";
-		pushBits(bits, charTo6(consentLang.charAt(0)), 6);  // ConsentLanguage char 1
-		pushBits(bits, charTo6(consentLang.charAt(1)), 6);  // ConsentLanguage char 2
-		pushBits(bits, VENDOR_LIST, 12);      // VendorListVersion
-		pushBits(bits, TCF_POLICY_VERSION, 6); // TcfPolicyVersion
-		pushBits(bits, 1, 1);                 // IsServiceSpecific = true
-		pushBits(bits, 0, 1);                 // UseNonStdTexts = false
-		pushBits(bits, 0, 12);               // SpecialFeatureOptIns
-
-		// PurposesConsent — 24 bits (purposes 1–24, we use 1–10)
+		// PurposesConsent — 24 bits
 		for (var p = 1; p <= 24; p++) {
 			pushBits(bits, purposeConsent[String(p)] ? 1 : 0, 1);
 		}
 
-		// PurposesLegitimateInterest — 24 bits (all 0)
-		pushBits(bits, 0, 24);
+		// PurposesLegitimateInterest — 24 bits
+		for (var pl = 1; pl <= 24; pl++) {
+			pushBits(bits, purposeLI[String(pl)] ? 1 : 0, 1);
+		}
 
 		// PurposeOneTreatment
-		pushBits(bits, 0, 1);
+		pushBits(bits, PURPOSE_ONE_TREATMENT ? 1 : 0, 1);
 
-		// PublisherCC (2 chars) — configurable via _fazTcfConfig, defaults to IT.
-		var publisherCC = (window._fazTcfConfig && window._fazTcfConfig.publisherCC) || "IT";
+		// PublisherCC
+		var publisherCC = cfg.publisherCC || "IT";
 		pushBits(bits, charTo6(publisherCC.charAt(0)), 6);
 		pushBits(bits, charTo6(publisherCC.charAt(1)), 6);
 
-		// MaxVendorConsentId = 0, EncodingType = 0
-		pushBits(bits, 0, 16);
-		pushBits(bits, 0, 1);
+		// --- Vendor Consent Section ---
+		var maxVendorConsentId = 0;
+		for (var vc in vendorConsent) {
+			if (vendorConsent.hasOwnProperty(vc)) {
+				var vcId = parseInt(vc, 10);
+				if (vcId > maxVendorConsentId) maxVendorConsentId = vcId;
+			}
+		}
+		pushBits(bits, maxVendorConsentId, 16);
+		pushBits(bits, 0, 1); // IsRangeEncoding = 0 (bitfield)
+		for (var v1 = 1; v1 <= maxVendorConsentId; v1++) {
+			pushBits(bits, vendorConsent[v1] ? 1 : 0, 1);
+		}
 
-		return bitsToBase64url(bits) + "." + DISCLOSED_VENDORS_SEGMENT;
+		// --- Vendor LI Section ---
+		var maxVendorLIId = 0;
+		for (var vl in vendorLI) {
+			if (vendorLI.hasOwnProperty(vl)) {
+				var vlId = parseInt(vl, 10);
+				if (vlId > maxVendorLIId) maxVendorLIId = vlId;
+			}
+		}
+		pushBits(bits, maxVendorLIId, 16);
+		pushBits(bits, 0, 1); // IsRangeEncoding = 0
+		for (var v2 = 1; v2 <= maxVendorLIId; v2++) {
+			pushBits(bits, vendorLI[v2] ? 1 : 0, 1);
+		}
+
+		// --- NumPubRestrictions = 0 ---
+		pushBits(bits, 0, 12);
+
+		var coreSegment = bitsToBase64url(bits);
+		var dvSegment   = encodeDisclosedVendorsSegment();
+
+		return coreSegment + "." + dvSegment;
 	}
 
 	/**
-	 * DisclosedVendors segment (mandatory in TCF v2.3).
-	 *
-	 * With zero disclosed vendors (CMP ID 0, no GVL), this is always:
-	 *   SegmentType=1 (001) + MaxVendorId=0 (16 zeros) + IsRangeEncoding=0
-	 *   = 20 bits padded to 24 = base64url "IAAA"
+	 * Write the euconsent-v2 cookie (standard TCF cookie name).
 	 */
-	var DISCLOSED_VENDORS_SEGMENT = "IAAA";
+	function setEuconsentCookie(tcString) {
+		var expiry = 180; // days — matches FAZ consent cookie
+		if (window._fazConfig && window._fazConfig._expiry) {
+			expiry = window._fazConfig._expiry;
+		}
+		var date = new Date();
+		date.setTime(date.getTime() + (expiry * 24 * 60 * 60 * 1000));
+		var domain = "";
+		if (window._fazConfig && window._fazConfig._rootDomain) {
+			domain = ";domain=" + window._fazConfig._rootDomain;
+		}
+		document.cookie = "euconsent-v2=" + tcString + ";expires=" + date.toUTCString() + ";path=/" + domain + ";SameSite=Lax";
+	}
 
 	/**
 	 * Build the TCData object returned by getTCData / addEventListener.
 	 */
 	function buildTCData(purposeConsent, tcString, listenerIdVal) {
+		var vendorConsent = buildVendorConsent(purposeConsent);
+		var vendorLI      = buildVendorLI(purposeConsent);
+		var purposeLI     = buildPurposeLI();
+
+		// Build vendor consent/LI objects with string keys.
+		var vcObj = {};
+		var vlObj = {};
+		for (var vc in vendorConsent) {
+			if (vendorConsent.hasOwnProperty(vc)) vcObj[String(vc)] = vendorConsent[vc];
+		}
+		for (var vl in vendorLI) {
+			if (vendorLI.hasOwnProperty(vl)) vlObj[String(vl)] = vendorLI[vl];
+		}
+
+		// Disclosed vendors.
+		var disclosedObj = {};
+		for (var d = 0; d < SELECTED_VENDORS.length; d++) {
+			disclosedObj[String(SELECTED_VENDORS[d])] = true;
+		}
+
 		var data = {
-			tcfPolicyVersion:  TCF_POLICY_VERSION,
-			cmpId:             CMP_ID,
-			cmpVersion:        CMP_VERSION,
-			gdprApplies:       (window._fazTcfConfig && typeof window._fazTcfConfig.gdprApplies !== "undefined") ? !!window._fazTcfConfig.gdprApplies : true,
-			tcString:          tcString,
-			listenerId:        listenerIdVal || undefined,
-			eventStatus:       "tcloaded",
-			cmpStatus:         "loaded",
-			isServiceSpecific: true,
+			tcfPolicyVersion:    TCF_POLICY_VERSION,
+			cmpId:               CMP_ID,
+			cmpVersion:          CMP_VERSION,
+			gdprApplies:         (typeof cfg.gdprApplies !== "undefined") ? !!cfg.gdprApplies : true,
+			tcString:            tcString,
+			listenerId:          listenerIdVal || undefined,
+			eventStatus:         "tcloaded",
+			cmpStatus:           "loaded",
+			isServiceSpecific:   true,
 			useNonStandardTexts: false,
-			purposeOneTreatment: false,
-			publisherCC:       (window._fazTcfConfig && window._fazTcfConfig.publisherCC) || "IT",
+			purposeOneTreatment: PURPOSE_ONE_TREATMENT,
+			publisherCC:         cfg.publisherCC || "IT",
 			outOfBand: {
-				allowedVendors:  {},
-				disclosedVendors: {}
+				allowedVendors:   {},
+				disclosedVendors: disclosedObj
 			},
 			purpose: {
-				consents:           purposeConsent,
-				legitimateInterests: {}
+				consents:            purposeConsent,
+				legitimateInterests: purposeLI
 			},
 			vendor: {
-				consents:           {},
-				legitimateInterests: {}
+				consents:            vcObj,
+				legitimateInterests: vlObj
 			},
 			specialFeatureOptins: {},
 			publisher: {
-				consents:           {},
+				consents:            {},
 				legitimateInterests: {},
 				customPurpose:       { consents: {}, legitimateInterests: {} },
 				restrictions:        {}
@@ -259,6 +416,11 @@
 		var purposes = buildPurposeConsent(consent);
 		var tcStr    = encodeTcString(purposes);
 
+		// Only write euconsent-v2 after user action, not during initial banner display.
+		if (eventStatus === "useractioncomplete") {
+			setEuconsentCookie(tcStr);
+		}
+
 		for (var id in listeners) {
 			if (!listeners.hasOwnProperty(id)) continue;
 			var entry = listeners[id];
@@ -269,7 +431,7 @@
 	}
 
 	/**
-	 * The __tcfapi() stub — implements required TCF v2.3 commands.
+	 * The __tcfapi() — implements required TCF v2.3 commands.
 	 */
 	function tcfapi(command, version, callback, parameter) {
 		if (typeof callback !== "function") return;
@@ -280,7 +442,7 @@
 
 			case "ping":
 				callback({
-					gdprApplies:       (window._fazTcfConfig && typeof window._fazTcfConfig.gdprApplies !== "undefined") ? !!window._fazTcfConfig.gdprApplies : true,
+					gdprApplies:       (typeof cfg.gdprApplies !== "undefined") ? !!cfg.gdprApplies : true,
 					cmpLoaded:         cmpLoaded,
 					cmpStatus:         "loaded",
 					displayStatus:     displayOpen ? "visible" : "hidden",
@@ -304,7 +466,6 @@
 			case "addEventListener":
 				listenerId++;
 				listeners[listenerId] = { callback: callback };
-				// Immediately fire with current state
 				consent  = readConsent();
 				purposes = buildPurposeConsent(consent);
 				tcStr    = encodeTcString(purposes);
@@ -322,6 +483,13 @@
 				}
 				break;
 
+			case "getVendorList":
+				var vendorListData = VENDORS && Object.keys(VENDORS).length > 0
+					? { vendors: VENDORS, purposes: cfg.purposes || {}, gvlSpecificationVersion: 3 }
+					: null;
+				callback(vendorListData, !!vendorListData);
+				break;
+
 			default:
 				callback(null, false);
 		}
@@ -334,14 +502,14 @@
 	// Install the __tcfapi function
 	window.__tcfapi = tcfapi;
 
-	// Process the command queue if any scripts called __tcfapi before we loaded
+	// Process the command queue
 	for (var q = 0; q < pendingQueue.length; q++) {
 		if (Array.isArray(pendingQueue[q])) {
 			tcfapi.apply(null, pendingQueue[q]);
 		}
 	}
 
-	// Create the __tcfapiLocator iframe (required by TCF spec for cross-frame communication)
+	// Create the __tcfapiLocator iframe (required by TCF spec)
 	if (!window.frames["__tcfapiLocator"]) {
 		var locatorFrame = document.createElement("iframe");
 		locatorFrame.style.cssText = "display:none;position:absolute;width:0;height:0;";
@@ -377,23 +545,24 @@
 	}, false);
 
 	// Track banner visibility for ping displayStatus.
-	// The first fazcookie_consent_update after banner_loaded is always the
-	// init state (from _fazSetInitialState) — skip it, it's not a user action.
-	var skipNextConsentUpdate = false;
-
 	document.addEventListener("fazcookie_banner_loaded", function () {
 		displayOpen = true;
-		skipNextConsentUpdate = true;
 		notifyListeners("cmpuishown");
 	});
 
-	document.addEventListener("fazcookie_consent_update", function () {
-		if (skipNextConsentUpdate) {
-			skipNextConsentUpdate = false;
-			return;
-		}
+	document.addEventListener("fazcookie_consent_update", function (event) {
+		var action = event && event.detail ? event.detail.action : "";
+		if (action === "init") return;
 		displayOpen = false;
 		notifyListeners("useractioncomplete");
 	});
+
+	// On page load, if consent already exists, set euconsent-v2 cookie.
+	var existingConsent = readConsent();
+	if (Object.keys(existingConsent).length > 1) {
+		var purposes = buildPurposeConsent(existingConsent);
+		var tcStr    = encodeTcString(purposes);
+		setEuconsentCookie(tcStr);
+	}
 
 })();

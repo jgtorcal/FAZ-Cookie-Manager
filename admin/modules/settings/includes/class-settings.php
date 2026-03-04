@@ -101,8 +101,10 @@ class Settings extends Store {
 				'sites' => array(),
 			),
 			'iab'          => array(
-				'enabled'      => false,
-				'publisher_cc' => '',
+				'enabled'               => false,
+				'publisher_cc'          => '',
+				'cmp_id'                => 0,
+				'purpose_one_treatment' => false,
 			),
 			'geolocation'  => array(
 				'maxmind_license_key' => '',
@@ -201,11 +203,13 @@ class Settings extends Store {
 			case 'uet_consent_mode':
 			case 'clarity_consent':
 			case 'enabled':
+			case 'purpose_one_treatment':
 				$value = faz_sanitize_bool( $value );
 				break;
 			case 'installed':
 			case 'step':
 			case 'max_pages':
+			case 'cmp_id':
 				$value = absint( $value );
 				break;
 			case 'excluded_pages':

@@ -119,6 +119,7 @@ class Admin {
 		return array(
 			'settings',
 			'gcm',
+			'gvl',
 			'languages',
 			'dashboard',
 			'banners',
@@ -196,6 +197,11 @@ class Admin {
 				'title' => __( 'Languages', 'faz-cookie-manager' ),
 				'slug'  => self::ADMIN_SLUG . '-languages',
 				'view'  => 'languages',
+			),
+			'gvl'          => array(
+				'title' => __( 'Vendor List (IAB)', 'faz-cookie-manager' ),
+				'slug'  => self::ADMIN_SLUG . '-gvl',
+				'view'  => 'gvl',
 			),
 			'settings'     => array(
 				'title' => __( 'Settings', 'faz-cookie-manager' ),

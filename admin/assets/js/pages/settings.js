@@ -11,9 +11,12 @@
 		if (!form) return;
 		loadSettings();
 		loadGeoDbStatus();
+		loadGvlStatus();
 		document.getElementById('faz-settings-save').addEventListener('click', saveSettings);
 		var geoBtn = document.getElementById('faz-geodb-update');
 		if (geoBtn) geoBtn.addEventListener('click', updateGeoDb);
+		var gvlBtn = document.getElementById('faz-gvl-update');
+		if (gvlBtn) gvlBtn.addEventListener('click', updateGvl);
 	});
 
 	function loadSettings() {
@@ -96,6 +99,51 @@
 			el.style.display = 'block';
 		}).catch(function (err) {
 			console.warn('Failed to load GeoIP status', err);
+		});
+	}
+
+	function loadGvlStatus() {
+		FAZ.get('gvl').then(function (data) {
+			var el = document.getElementById('faz-gvl-status');
+			if (!el) return;
+			el.textContent = '';
+			if (data.version && data.version > 0) {
+				var b1 = document.createElement('strong');
+				b1.textContent = 'GVL Version: ';
+				el.appendChild(b1);
+				el.appendChild(document.createTextNode(data.version + ' | '));
+				var b2 = document.createElement('strong');
+				b2.textContent = 'Vendors: ';
+				el.appendChild(b2);
+				el.appendChild(document.createTextNode((data.vendor_count || 0) + ' | '));
+				var b3 = document.createElement('strong');
+				b3.textContent = 'Last Updated: ';
+				el.appendChild(b3);
+				el.appendChild(document.createTextNode(data.last_updated || 'N/A'));
+			} else {
+				el.textContent = 'No GVL data downloaded yet. Click "Update GVL Now" to download.';
+			}
+		}).catch(function () {
+			var el = document.getElementById('faz-gvl-status');
+			if (el) el.textContent = 'No GVL data available.';
+		});
+	}
+
+	function updateGvl(event) {
+		if (event) event.preventDefault();
+		var btn = document.getElementById('faz-gvl-update');
+		FAZ.btnLoading(btn, true);
+		FAZ.post('gvl/update').then(function (data) {
+			FAZ.btnLoading(btn, false);
+			if (data.success) {
+				FAZ.notify('GVL updated: v' + data.version + ' (' + data.vendor_count + ' vendors)');
+				loadGvlStatus();
+			} else {
+				FAZ.notify(data.message || 'Failed to update GVL', 'error');
+			}
+		}).catch(function (err) {
+			FAZ.btnLoading(btn, false);
+			FAZ.notify((err && err.message) || 'Failed to update GVL', 'error');
 		});
 	}
 

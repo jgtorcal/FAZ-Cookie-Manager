@@ -18,6 +18,7 @@ use FazCookie\Admin\Modules\Settings\Includes\Settings;
 use FazCookie\Admin\Modules\Gcm\Includes\Gcm_Settings;
 use FazCookie\Frontend\Modules\Consent_Logger\Consent_Logger;
 use FazCookie\Includes\Geolocation;
+use FazCookie\Includes\Gvl;
 use FazCookie\Includes\Cookie_Table_Shortcode;
 /**
  * The public-facing functionality of the plugin.
@@ -161,7 +162,8 @@ class Frontend {
 			$iab_enabled = (bool) $this->settings->get( 'iab', 'enabled' );
 			if ( $iab_enabled ) {
 				// Early command-queue stub so ad scripts can call __tcfapi before CMP loads.
-				$tcf_stub = 'if(typeof window.__tcfapi!=="function"){var a=[];window.__tcfapi=function(){a.push(arguments);};window.__tcfapi.a=a;}';
+				// Handles 'ping' directly so pre-CMP callers get a valid response.
+				$tcf_stub = 'if(typeof window.__tcfapi!=="function"){var a=[];window.__tcfapi=function(cmd,ver,cb){if(cmd==="ping"){cb({gdprApplies:undefined,cmpLoaded:false,cmpStatus:"stub",displayStatus:"hidden",apiVersion:"2.2"},true);return;}a.push(arguments);};window.__tcfapi.a=a;}';
 				wp_add_inline_script( $this->plugin_name, $tcf_stub, 'before' );
 				$tcf_suffix = ''; // Always load non-minified (no build tooling).
 				$tcf_handle = $this->plugin_name . '-tcf-cmp';
@@ -171,9 +173,10 @@ class Frontend {
 				$saved_cc     = $this->settings->get( 'iab', 'publisher_cc' );
 				$country_code = ! empty( $saved_cc ) ? strtoupper( sanitize_text_field( $saved_cc ) ) : '';
 				if ( ! preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
-					$site_locale  = get_locale();
-					$country_code = strtoupper( substr( $site_locale, -2 ) );
-					if ( ! preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+					$site_locale = (string) get_locale();
+					if ( preg_match( '/^[a-z]{2}[_-]([A-Z]{2})/i', $site_locale, $matches ) ) {
+						$country_code = strtoupper( $matches[1] );
+					} else {
 						$country_code = 'IT';
 					}
 				}
@@ -187,9 +190,40 @@ class Frontend {
 			$visitor_country = Geolocation::get_country();
 			$gdpr_applies    = empty( $visitor_country ) ? 'true' : ( Geolocation::is_eu() ? 'true' : 'false' );
 
+			// Build TCF config with GVL data if available.
+			$tcf_config = array(
+				'publisherCC'         => $country_code,
+				'consentLanguage'     => $consent_lang,
+				'gdprApplies'         => 'true' === $gdpr_applies,
+				'cmpId'               => absint( $this->settings->get( 'iab', 'cmp_id' ) ),
+				'purposeOneTreatment' => (bool) $this->settings->get( 'iab', 'purpose_one_treatment' ),
+			);
+
+			$gvl = Gvl::get_instance();
+			if ( $gvl->has_data() ) {
+				$tcf_config['gvlVersion'] = $gvl->get_version();
+
+				$selected_ids = get_option( 'faz_gvl_selected_vendors', array() );
+				if ( ! empty( $selected_ids ) ) {
+					$tcf_config['selectedVendors'] = array_map( 'absint', $selected_ids );
+					$selected_vendors = $gvl->get_vendors( $selected_ids );
+					$compact_vendors  = array();
+					foreach ( $selected_vendors as $vid => $v ) {
+						$compact_vendors[ $vid ] = array(
+							'name'           => isset( $v['name'] ) ? $v['name'] : '',
+							'purposes'       => isset( $v['purposes'] ) ? $v['purposes'] : array(),
+							'legIntPurposes' => isset( $v['legIntPurposes'] ) ? $v['legIntPurposes'] : array(),
+							'features'       => isset( $v['features'] ) ? $v['features'] : array(),
+							'specialFeatures' => isset( $v['specialFeatures'] ) ? $v['specialFeatures'] : array(),
+						);
+					}
+					$tcf_config['vendors'] = $compact_vendors;
+				}
+			}
+
 			wp_add_inline_script(
 				$tcf_handle,
-				'window._fazTcfConfig={publisherCC:"' . esc_js( $country_code ) . '",consentLanguage:"' . esc_js( $consent_lang ) . '",gdprApplies:' . $gdpr_applies . '};',
+				'window._fazTcfConfig=' . wp_json_encode( $tcf_config ) . ';',
 				'before'
 			);
 			}
@@ -428,6 +462,42 @@ class Frontend {
 			);
 		}
 		$store['_providersToBlock'] = $providers;
+
+		// IAB vendor data for preference center.
+		$iab_enabled = (bool) $this->settings->get( 'iab', 'enabled' );
+		$store['_iabEnabled'] = $iab_enabled;
+		if ( $iab_enabled ) {
+			$gvl = Gvl::get_instance();
+			if ( $gvl->has_data() ) {
+				$selected_ids = get_option( 'faz_gvl_selected_vendors', array() );
+				if ( ! empty( $selected_ids ) ) {
+					$selected_vendors = $gvl->get_vendors( $selected_ids );
+					$vendor_data = array();
+					foreach ( $selected_vendors as $vid => $v ) {
+						$vendor_data[] = array(
+							'id'             => absint( $vid ),
+							'name'           => isset( $v['name'] ) ? $v['name'] : '',
+							'purposes'       => isset( $v['purposes'] ) ? $v['purposes'] : array(),
+							'legIntPurposes' => isset( $v['legIntPurposes'] ) ? $v['legIntPurposes'] : array(),
+							'features'       => isset( $v['features'] ) ? $v['features'] : array(),
+							'policyUrl'      => isset( $v['policyUrl'] ) ? $v['policyUrl'] : '',
+							'cookieMaxAgeSeconds' => isset( $v['cookieMaxAgeSeconds'] ) ? $v['cookieMaxAgeSeconds'] : null,
+						);
+					}
+					$store['_iabVendors'] = $vendor_data;
+				}
+				$purposes = $gvl->get_purposes( faz_current_language() );
+				$purpose_data = array();
+				foreach ( $purposes as $pid => $p ) {
+					$purpose_data[] = array(
+						'id'   => isset( $p['id'] ) ? $p['id'] : absint( $pid ),
+						'name' => isset( $p['name'] ) ? $p['name'] : '',
+					);
+				}
+				$store['_iabPurposes'] = $purpose_data;
+			}
+		}
+
 		return $store;
 	}
 	/**
@@ -823,6 +893,8 @@ class Frontend {
 			'.faz-notice',
 			'.faz-opt-out',
 			'.faz-footer',
+			'.faz-iab-vendors',
+			'.faz-vendor-',
 		);
 
 		return preg_replace_callback(
