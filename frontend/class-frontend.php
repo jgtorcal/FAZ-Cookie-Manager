@@ -180,7 +180,8 @@ class Frontend {
 						$country_code = 'IT';
 					}
 				}
-					// ConsentLanguage: use current banner language (uppercase 2-char ISO 639-1).
+
+				// ConsentLanguage: use current banner language (uppercase 2-char ISO 639-1).
 				$consent_lang = strtoupper( substr( faz_current_language(), 0, 2 ) );
 				if ( ! preg_match( '/^[A-Z]{2}$/', $consent_lang ) ) {
 					$consent_lang = 'EN';
@@ -201,9 +202,13 @@ class Frontend {
 
 				$gvl = Gvl::get_instance();
 				if ( $gvl->has_data() ) {
-					$tcf_config['gvlVersion'] = $gvl->get_version();
+					$tcf_config['gvlVersion']       = $gvl->get_version();
+					$tcf_config['purposes']         = $gvl->get_purposes( strtolower( $consent_lang ) );
+					$tcf_config['specialPurposes']  = $gvl->get_special_purposes();
+					$tcf_config['features']         = $gvl->get_features();
+					$tcf_config['specialFeatures']  = $gvl->get_special_features();
 
-					$selected_ids = get_option( 'faz_gvl_selected_vendors', array() );
+					$selected_ids = (array) get_option( 'faz_gvl_selected_vendors', array() );
 					if ( ! empty( $selected_ids ) ) {
 						$tcf_config['selectedVendors'] = array_map( 'absint', $selected_ids );
 						$selected_vendors = $gvl->get_vendors( $selected_ids );
@@ -469,7 +474,7 @@ class Frontend {
 		if ( $iab_enabled ) {
 			$gvl = Gvl::get_instance();
 			if ( $gvl->has_data() ) {
-				$selected_ids = get_option( 'faz_gvl_selected_vendors', array() );
+				$selected_ids = (array) get_option( 'faz_gvl_selected_vendors', array() );
 				if ( ! empty( $selected_ids ) ) {
 					$selected_vendors = $gvl->get_vendors( $selected_ids );
 					$vendor_data = array();

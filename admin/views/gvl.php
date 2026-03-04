@@ -27,11 +27,11 @@ defined( 'ABSPATH' ) || exit;
 		</div>
 		<div class="faz-card-body">
 			<div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">
-				<input type="text" id="faz-gvl-search" class="faz-input" placeholder="Search vendors..." style="flex:1;max-width:300px;">
-				<select id="faz-gvl-purpose-filter" class="faz-input" style="width:auto;">
+				<input type="text" id="faz-gvl-search" class="faz-input" placeholder="Search vendors..." aria-label="Search vendors" style="flex:1;max-width:300px;">
+				<select id="faz-gvl-purpose-filter" class="faz-input" aria-label="Filter by purpose" style="width:auto;">
 					<option value="0">All purposes</option>
 				</select>
-				<span id="faz-gvl-selected-count" style="color:var(--faz-text-secondary);white-space:nowrap;"></span>
+				<span id="faz-gvl-selected-count" aria-live="polite" style="color:var(--faz-text-secondary);white-space:nowrap;"></span>
 			</div>
 
 			<div style="margin-bottom:8px;">

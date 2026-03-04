@@ -526,13 +526,27 @@
 	 * @param {Function} done Callback({cookies, scripts}).
 	 */
 	function scanSingleUrl(url, done) {
+		// Validate URL: only allow http/https same-origin pages.
+		var parsedUrl;
+		try {
+			parsedUrl = new URL(url, window.location.origin);
+		} catch (_unused) {
+			done({ cookies: [], scripts: [] });
+			return;
+		}
+		if (
+			(parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') ||
+			parsedUrl.origin !== window.location.origin
+		) {
+			done({ cookies: [], scripts: [] });
+			return;
+		}
+
 		var container = document.getElementById('faz-scan-frame');
 		container.textContent = ''; // Remove previous iframe.
 
 		var iframe = document.createElement('iframe');
 		iframe.style.cssText = 'width:1px;height:1px;border:none;';
-		// No sandbox: allow-scripts + allow-same-origin can escape sandboxing.
-		// This is admin-only code loading same-origin pages for cookie scanning.
 		container.appendChild(iframe);
 
 		var finished = false;
@@ -596,8 +610,8 @@
 		// Timeout fallback in case load never fires.
 		timer = setTimeout(finish, IFRAME_LOAD_TIMEOUT);
 
-		// Navigate the iframe.
-		iframe.src = url;
+		// Navigate the iframe (validated URL).
+		iframe.src = parsedUrl.href;
 	}
 
 	/**

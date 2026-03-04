@@ -336,12 +336,20 @@ class Gvl {
 		}
 
 		$path     = $dir . sanitize_file_name( $filename );
-		$tmp_path = $path . '.tmp';
-		$bytes    = file_put_contents( $tmp_path, $content, LOCK_EX ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		if ( false === $bytes ) {
+		$tmp_path = wp_tempnam( $path );
+		if ( ! $tmp_path ) {
 			return false;
 		}
-		return rename( $tmp_path, $path );
+		$bytes = file_put_contents( $tmp_path, $content, LOCK_EX ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		if ( false === $bytes ) {
+			@unlink( $tmp_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return false;
+		}
+		if ( ! rename( $tmp_path, $path ) ) {
+			@unlink( $tmp_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return false;
+		}
+		return true;
 	}
 
 	/**

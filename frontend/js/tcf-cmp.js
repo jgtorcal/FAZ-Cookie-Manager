@@ -182,10 +182,35 @@
 	}
 
 	/**
-	 * Build vendor legitimate interest map.
-	 * LI is auto-established for purposes the vendor declares under legIntPurposes.
+	 * Build PurposesLegitimateInterest bitfield.
+	 * Per IAB TCF spec: LI bit = true only if a vendor declares LI for that purpose
+	 * AND the user has NOT exercised their Right to Object (i.e. user has consented
+	 * to the corresponding category).
 	 */
-	function buildVendorLI(purposeConsent) {
+	function buildPurposeLI(purposeConsent) {
+		var li = {};
+		for (var p = 1; p <= 24; p++) li[String(p)] = false;
+
+		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
+			var v = VENDORS[SELECTED_VENDORS[i]];
+			if (!v || !v.legIntPurposes) continue;
+			for (var j = 0; j < v.legIntPurposes.length; j++) {
+				var pid = String(v.legIntPurposes[j]);
+				// Only set LI if user has not objected (consent for this purpose exists).
+				if (purposeConsent[pid]) {
+					li[pid] = true;
+				}
+			}
+		}
+		return li;
+	}
+
+	/**
+	 * Build vendor legitimate interest map.
+	 * Per IAB TCF spec: vendor LI = true only if at least one of the vendor's
+	 * LI purposes still has LI established (user did not object).
+	 */
+	function buildVendorLI(purposeLI) {
 		var vendorLI = {};
 		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
 			var vid = SELECTED_VENDORS[i];
@@ -194,27 +219,16 @@
 				vendorLI[vid] = false;
 				continue;
 			}
-			vendorLI[vid] = true;
+			var hasAllowedLI = false;
+			for (var j = 0; j < v.legIntPurposes.length; j++) {
+				if (purposeLI[String(v.legIntPurposes[j])]) {
+					hasAllowedLI = true;
+					break;
+				}
+			}
+			vendorLI[vid] = hasAllowedLI;
 		}
 		return vendorLI;
-	}
-
-	/**
-	 * Build PurposesLegitimateInterest bitfield.
-	 * For each purpose 1-24: set bit=1 if ANY selected vendor declares LI for that purpose.
-	 */
-	function buildPurposeLI() {
-		var li = {};
-		for (var p = 1; p <= 24; p++) li[String(p)] = false;
-
-		for (var i = 0; i < SELECTED_VENDORS.length; i++) {
-			var v = VENDORS[SELECTED_VENDORS[i]];
-			if (!v || !v.legIntPurposes) continue;
-			for (var j = 0; j < v.legIntPurposes.length; j++) {
-				li[String(v.legIntPurposes[j])] = true;
-			}
-		}
-		return li;
 	}
 
 	/**
@@ -254,8 +268,8 @@
 	function encodeTcString(purposeConsent) {
 		var bits = [];
 		var vendorConsent = buildVendorConsent(purposeConsent);
-		var vendorLI      = buildVendorLI(purposeConsent);
-		var purposeLI     = buildPurposeLI();
+		var purposeLI     = buildPurposeLI(purposeConsent);
+		var vendorLI      = buildVendorLI(purposeLI);
 
 		// Deciseconds since Unix epoch (Jan 1, 1970) per IAB TCF spec.
 		var created = Math.round(Date.now() / 100);
@@ -353,8 +367,8 @@
 	 */
 	function buildTCData(purposeConsent, tcString, listenerIdVal) {
 		var vendorConsent = buildVendorConsent(purposeConsent);
-		var vendorLI      = buildVendorLI(purposeConsent);
-		var purposeLI     = buildPurposeLI();
+		var purposeLI     = buildPurposeLI(purposeConsent);
+		var vendorLI      = buildVendorLI(purposeLI);
 
 		// Build vendor consent/LI objects with string keys.
 		var vcObj = {};
@@ -486,7 +500,16 @@
 
 			case "getVendorList":
 				var vendorListData = VENDORS && Object.keys(VENDORS).length > 0
-					? { vendors: VENDORS, purposes: cfg.purposes || {}, gvlSpecificationVersion: 3 }
+					? {
+						gvlSpecificationVersion: 3,
+						vendorListVersion: VENDOR_LIST,
+						tcfPolicyVersion: TCF_POLICY_VERSION,
+						vendors: VENDORS,
+						purposes: cfg.purposes || {},
+						specialPurposes: cfg.specialPurposes || {},
+						features: cfg.features || {},
+						specialFeatures: cfg.specialFeatures || {}
+					}
 					: null;
 				callback(vendorListData, !!vendorListData);
 				break;
@@ -558,9 +581,23 @@
 		notifyListeners("useractioncomplete");
 	});
 
-	// On page load, if consent already exists, set euconsent-v2 cookie.
-	var existingConsent = readConsent();
-	if (Object.keys(existingConsent).length > 1) {
+	// On page load, if user has previously given explicit consent, set euconsent-v2 cookie.
+	// Check for action=yes in the consent cookie to ensure this was a real user action.
+	function hasUserAction() {
+		var match = document.cookie.match(/fazcookie-consent=([^;]+)/);
+		if (!match) return false;
+		var pairs = match[1].split(",");
+		for (var i = 0; i < pairs.length; i++) {
+			var kv = pairs[i].split(":");
+			if (kv.length === 2 && kv[0].trim() === "action") {
+				return kv[1].trim() === "yes";
+			}
+		}
+		return false;
+	}
+
+	if (hasUserAction()) {
+		var existingConsent = readConsent();
 		var purposes = buildPurposeConsent(existingConsent);
 		var tcStr    = encodeTcString(purposes);
 		setEuconsentCookie(tcStr);

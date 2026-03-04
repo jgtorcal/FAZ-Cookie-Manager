@@ -1778,6 +1778,7 @@ function _fazSaveVendorConsent(choice) {
     const payload = parts.join(',');
     if (payload.length > 3800) {
         console.warn('fazVendorConsent cookie too large (' + payload.length + ' bytes), vendor consent may not persist reliably.');
+        return;
     }
     const secure = location.protocol === 'https:' ? ';Secure' : '';
     document.cookie = 'fazVendorConsent=' + payload + ';expires=' + date.toUTCString() + ';path=/' + domain + ';SameSite=Lax' + secure;

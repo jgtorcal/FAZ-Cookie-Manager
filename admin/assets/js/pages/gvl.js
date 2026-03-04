@@ -62,9 +62,8 @@
 				// Populate purpose filter.
 				if (data.purposes && data.purposes.length) {
 					var select = document.getElementById('faz-gvl-purpose-filter');
-					if (select) {
-						while (select.options.length > 1) { select.remove(1); }
-					}
+					if (!select) return;
+					while (select.options.length > 1) { select.remove(1); }
 					data.purposes.forEach(function (p) {
 						var opt = document.createElement('option');
 						opt.value = p.id;
@@ -196,6 +195,13 @@
 		});
 		table.appendChild(tbody);
 		container.appendChild(table);
+
+		// Sync select-all checkbox state for current page.
+		var selectAll = document.getElementById('faz-gvl-select-all');
+		if (selectAll && vendors.length) {
+			var allSelected = vendors.every(function(v) { return !!selectedVendors[v.id]; });
+			selectAll.checked = allSelected;
+		}
 	}
 
 	function renderPagination(total, pages, page) {
