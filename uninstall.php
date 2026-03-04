@@ -70,7 +70,7 @@ if ( defined( 'FAZ_REMOVE_ALL_DATA' ) && true === FAZ_REMOVE_ALL_DATA ) {
 
 		// Remove GVL files (recursive to handle dotfiles and subdirectories).
 		$upload_dir = wp_upload_dir();
-		$gvl_dir    = $upload_dir['basedir'] . '/faz-cookie-manager/gvl';
+		$gvl_dir    = trailingslashit( $upload_dir['basedir'] ) . 'faz-cookie-manager/gvl';
 		if ( is_dir( $gvl_dir ) ) {
 			$iterator = new \RecursiveIteratorIterator(
 				new \RecursiveDirectoryIterator( $gvl_dir, \RecursiveDirectoryIterator::SKIP_DOTS ),

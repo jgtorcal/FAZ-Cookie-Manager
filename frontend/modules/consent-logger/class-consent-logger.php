@@ -75,11 +75,12 @@ class Consent_Logger {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function handle_rest_consent( $request ) {
-		// Rate limit: 1 request per IP+consent_id per second.
-		// Using consent_id in the key avoids colliding different users behind the same NAT.
+		// Dual guardrail: per-IP AND per-consent_id throttle.
+		// The IP check prevents a single client from flooding with different consent_ids.
+		// The consent_id check prevents replaying the same consent_id from different IPs.
 		$consent_id   = $request->get_param( 'consent_id' );
-		$throttle_key = 'faz_consent_' . substr( md5( $consent_id ?? '' ), 0, 8 );
-		if ( faz_throttle_request( $throttle_key ) ) {
+		$consent_key  = 'faz_consent_' . substr( md5( $consent_id ?? '' ), 0, 8 );
+		if ( faz_throttle_request( 'faz_consent_ip' ) || faz_throttle_request( $consent_key ) ) {
 			error_log( '[FAZ Cookie Manager] Consent log throttled for consent_id: ' . sanitize_text_field( $consent_id ?? '' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return rest_ensure_response( array( 'throttled' => true ) );
 		}

@@ -811,8 +811,9 @@ function _fazSetCheckboxes(
         boxElem.checked = checked;
         boxElem.disabled = disabled;
         if (disabled) {
-            boxElem.style.backgroundColor = '#94a3b8';
-            boxElem.style.opacity = '0.6';
+            // Necessary toggles: use active (blue) color to indicate "always on".
+            boxElem.style.backgroundColor = activeColor;
+            boxElem.style.opacity = '1';
             boxElem.style.cursor = 'not-allowed';
         } else {
             boxElem.style.backgroundColor = checked ? activeColor : inactiveColor;

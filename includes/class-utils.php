@@ -230,22 +230,37 @@ if ( ! function_exists( 'faz_resolve_client_ip' ) ) {
 	 * @return string Client IP address, or empty string if unavailable.
 	 */
 	function faz_resolve_client_ip() {
-		$headers = array(
-			'HTTP_CF_CONNECTING_IP', // Cloudflare.
-			'HTTP_X_FORWARDED_FOR',  // Generic reverse proxy.
-			'HTTP_X_REAL_IP',        // Nginx.
-		);
-		foreach ( $headers as $header ) {
-			if ( ! empty( $_SERVER[ $header ] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-				// Header may contain comma-separated IPs (e.g. X-Forwarded-For chain) — take the first.
-				$ip = strtok( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ), ',' );
-				$ip = trim( $ip );
-				if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
-					return $ip;
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+
+		/**
+		 * Whether to trust proxy headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP).
+		 *
+		 * These headers are client-controlled and can be spoofed. Only enable
+		 * this filter if WordPress is behind a trusted reverse proxy.
+		 *
+		 * @since 1.1.0
+		 * @param bool   $trust       Whether to trust proxy headers. Default false.
+		 * @param string $remote_addr The REMOTE_ADDR value.
+		 */
+		if ( apply_filters( 'faz_trust_proxy_headers', false, $remote_addr ) ) {
+			$headers = array(
+				'HTTP_CF_CONNECTING_IP', // Cloudflare.
+				'HTTP_X_FORWARDED_FOR',  // Generic reverse proxy.
+				'HTTP_X_REAL_IP',        // Nginx.
+			);
+			foreach ( $headers as $header ) {
+				if ( ! empty( $_SERVER[ $header ] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					// Header may contain comma-separated IPs (e.g. X-Forwarded-For chain) — take the first.
+					$ip = strtok( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ), ',' );
+					$ip = trim( $ip );
+					if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+						return $ip;
+					}
 				}
 			}
 		}
-		return isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+
+		return $remote_addr;
 	}
 }
 
@@ -263,6 +278,7 @@ if ( ! function_exists( 'faz_throttle_request' ) ) {
 	 * @return bool True if request is a duplicate and should be skipped.
 	 */
 	function faz_throttle_request( $prefix = 'faz_throttle', $ttl = 1 ) {
+		$ttl       = max( 1, absint( $ttl ) );
 		$client_ip = faz_resolve_client_ip();
 		if ( empty( $client_ip ) ) {
 			// Cannot identify the client — skip throttling rather than

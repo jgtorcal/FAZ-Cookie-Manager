@@ -48,15 +48,17 @@ test.describe('Settings reflection and secure script blocking', () => {
       await postSettings(page, nonce, { banner_control: bannerControl });
 
       const visitorContext = await browser.newContext({ baseURL: wpBaseURL });
-      const visitorPage = await visitorContext.newPage();
-      await visitorPage.goto('/', { waitUntil: 'domcontentloaded' });
+      try {
+        const visitorPage = await visitorContext.newPage();
+        await visitorPage.goto('/', { waitUntil: 'domcontentloaded' });
 
-      await expect(visitorPage.locator('[data-faz-tag="notice"]')).toHaveCount(0);
+        await expect(visitorPage.locator('[data-faz-tag="notice"]')).toHaveCount(0);
 
-      const hasFrontendConfig = await visitorPage.evaluate(() => typeof window._fazConfig !== 'undefined');
-      expect(hasFrontendConfig).toBeFalsy();
-
-      await visitorContext.close();
+        const hasFrontendConfig = await visitorPage.evaluate(() => typeof window._fazConfig !== 'undefined');
+        expect(hasFrontendConfig).toBeFalsy();
+      } finally {
+        await visitorContext.close();
+      }
     } finally {
       await postSettings(page, nonce, original);
     }

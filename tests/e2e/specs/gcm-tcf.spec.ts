@@ -5,10 +5,16 @@ test.describe('GCM and IAB TCF behavior', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const gcm = await page.evaluate(() => {
-      // Check multiple indicators: gtag function, standard dataLayer, or custom data layer names.
+      // Resolve dataLayer name: plugin may use a custom name via fazSettings.
+      const dlName =
+        (window.fazSettings && typeof window.fazSettings.dataLayerName === 'string'
+          ? window.fazSettings.dataLayerName
+          : '') || 'dataLayer';
+      const dl = (window as Record<string, unknown>)[dlName];
+
+      // Check multiple indicators: gtag function, dataLayer (standard or custom), or google_tag_data.
       const hasGtag = typeof window.gtag === 'function';
-      const hasDataLayer = Array.isArray(window.dataLayer);
-      // Some setups use window.google_tag_data for GCM state.
+      const hasDataLayer = Array.isArray(dl);
       const hasGoogleTagData =
         typeof window.google_tag_data === 'object' &&
         window.google_tag_data !== null &&
@@ -19,17 +25,20 @@ test.describe('GCM and IAB TCF behavior', () => {
         return { active: false };
       }
 
-      const entries = [...(window.dataLayer || [])];
-      const found = entries.find((entry) => {
-        if (!entry) {
+      const entries = [...((dl as unknown[]) || [])];
+      // dataLayer entries from gtag() are Arguments objects (not real arrays),
+      // so we use bracket notation instead of Array.isArray().
+      const found = entries.find((entry: unknown) => {
+        if (!entry || typeof entry !== 'object') {
           return false;
         }
-        return entry[0] === 'consent' && entry[1] === 'default';
+        const e = entry as Record<number, unknown>;
+        return e[0] === 'consent' && e[1] === 'default';
       });
 
       return {
         active: true,
-        defaults: found ? found[2] : null,
+        defaults: found ? (found as Record<number, unknown>)[2] : null,
       };
     });
 

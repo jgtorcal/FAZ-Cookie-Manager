@@ -26,15 +26,15 @@ const TECHNICAL_COOKIE_RE = [
 const isTechnicalCookie = (name: string): boolean => TECHNICAL_COOKIE_RE.some((re) => re.test(name));
 
 export const test = base.extend<WPFixtures>({
-  wpBaseURL: async ({}, use) => {
+  wpBaseURL: async ({}, use) => { // biome-ignore lint/style/noEmptyPattern: Playwright fixture API requires destructured first argument
     await use(process.env.WP_BASE_URL ?? 'http://localhost:9998');
   },
 
-  adminUser: async ({}, use) => {
+  adminUser: async ({}, use) => { // biome-ignore lint/style/noEmptyPattern: Playwright fixture API requires destructured first argument
     await use(process.env.WP_ADMIN_USER ?? 'admin');
   },
 
-  adminPass: async ({}, use) => {
+  adminPass: async ({}, use) => { // biome-ignore lint/style/noEmptyPattern: Playwright fixture API requires destructured first argument
     await use(process.env.WP_ADMIN_PASS ?? 'admin');
   },
 
@@ -65,10 +65,15 @@ export const test = base.extend<WPFixtures>({
     });
   },
 
-  parseConsentCookie: async ({}, use) => {
+  parseConsentCookie: async ({}, use) => { // biome-ignore lint/style/noEmptyPattern: Playwright fixture API requires destructured first argument
     await use((raw: string) => {
       const parsed: ConsentMap = {};
-      const decoded = decodeURIComponent(raw);
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(raw);
+      } catch {
+        decoded = raw;
+      }
       for (const chunk of decoded.split(',')) {
         const [key, ...rest] = chunk.split(':');
         if (!key) {
