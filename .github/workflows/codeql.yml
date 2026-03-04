@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 8 * * 1'
 
 jobs:
   analyze:
@@ -14,7 +16,7 @@ jobs:
       security-events: write
     strategy:
       matrix:
-        language: [ javascript ]
+        language: [ javascript, php ]
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3

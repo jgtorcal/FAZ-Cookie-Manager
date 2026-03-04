@@ -1153,9 +1153,6 @@ function _fazUnblock() {
     );
 }
 
-function _fazClearListeners() {    _nodeListObserver.disconnect();
-    document.createElement = _fazCreateElementBackup;
-}
 function _fazAddProviderToList(node, cleanedHostname) {
     const nodeCategory =
         node.hasAttribute("data-fazcookie") && node.getAttribute("data-fazcookie");

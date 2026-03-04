@@ -189,11 +189,7 @@ class Controller {
 	 */
 	public function get_info( $args = array() ) {
 		$data = array();
-		if ( false === faz_is_cloud_request() ) {
-			$data = $this->get_site_info( $args );
-		} else {
-			$data = $this->get_app_info( $args );
-		}
+		$data = $this->get_site_info( $args );
 		return $data;
 	}
 
@@ -321,14 +317,6 @@ class Controller {
 	 * @return void
 	 */
 	public function check_api() {
-		if ( ! faz_is_cloud_request() ) {
-			return;
-		}
-		$response = $this->get_app_info();
-		if ( is_wp_error( $response ) ) {
-			return;
-		}
-		$this->maybe_update_settings( $response );
 	}
 
 	/**

@@ -50,27 +50,6 @@ class Frontend {
 	private $version;
 
 	/**
-	 * Admin modules of the plugin
-	 *
-	 * @var array
-	 */
-	private static $modules;
-
-	/**
-	 * Currently active modules
-	 *
-	 * @var array
-	 */
-	private static $active_modules;
-
-	/**
-	 * Existing modules
-	 *
-	 * @var array
-	 */
-	public static $existing_modules;
-
-	/**
 	 * Banner object
 	 *
 	 * @var object
@@ -115,7 +94,6 @@ class Frontend {
 
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
-		$this->load_modules();
 		$this->settings = new Settings();
 		$this->gcm_settings = new Gcm_Settings();
 		new Consent_Logger();
@@ -123,47 +101,7 @@ class Frontend {
 		add_action( 'init', array( $this, 'load_banner' ) );
 		add_action( 'wp_footer', array( $this, 'banner_html' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ), 1 );
-		add_action( 'wp_head', array( $this, 'insert_script' ), 1 );
 		add_action( 'wp_head', array( $this, 'insert_styles' ) );
-	}
-
-	/**
-	 * Get the default modules array
-	 *
-	 * @since 3.0.0
-	 * @return array
-	 */
-	public function get_default_modules() {
-		$modules = array();
-		return $modules;
-	}
-
-	/**
-	 * Load all the modules
-	 *
-	 * @return void
-	 */
-	public function load_modules() {
-		if ( true === faz_disable_banner() ) {
-			return;
-		}
-		foreach ( $this->get_default_modules() as $module ) {
-			$parts      = explode( '_', $module );
-			$class      = implode( '_', $parts );
-			$class      = str_ireplace( '-', '_', $class );
-			$module     = str_ireplace( '-', '_', $module );
-			$class_name = 'FazCookie\\Frontend\\Modules\\' . ucwords( $module, '_' ) . '\\' . ucwords( $class, '_' );
-
-			if ( class_exists( $class_name ) ) {
-				$module_obj = new $class_name( $module );
-				if ( $module_obj instanceof $class_name ) {
-					if ( $module_obj->is_active() ) {
-						$module_obj->init();
-						self::$active_modules[ $module ] = true;
-					}
-				}
-			}
-		}
 	}
 
 	/**
@@ -228,6 +166,18 @@ class Frontend {
 				$tcf_suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 				$tcf_handle = $this->plugin_name . '-tcf-cmp';
 				wp_enqueue_script( $tcf_handle, plugin_dir_url( __FILE__ ) . 'js/tcf-cmp' . $tcf_suffix . '.js', array( $this->plugin_name ), $this->version, false );
+
+				// PublisherCC: use admin setting, fall back to site locale.
+				$saved_cc     = $this->settings->get( 'iab', 'publisher_cc' );
+				$country_code = ! empty( $saved_cc ) ? strtoupper( sanitize_text_field( $saved_cc ) ) : '';
+				if ( ! preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+					$site_locale  = get_locale();
+					$country_code = strtoupper( substr( $site_locale, -2 ) );
+					if ( ! preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+						$country_code = 'IT';
+					}
+				}
+				wp_add_inline_script( $tcf_handle, 'window._fazTcfConfig={publisherCC:"' . esc_js( $country_code ) . '"};', 'before' );
 			}
 
 			// Pageview and banner interaction tracking.
@@ -253,8 +203,8 @@ class Frontend {
 				"document.addEventListener('fazcookie_banner_loaded',function(){fazTrack('banner_view');});" .
 				"document.addEventListener('fazcookie_consent_update',function(e){" .
 					"var d=e.detail||{};" .
-					"if(d.accepted)fazTrack('banner_accept');" .
-					"else if(d.rejected)fazTrack('banner_reject');" .
+					"if(d.accepted&&d.accepted.length>1)fazTrack('banner_accept');" .
+					"else if(d.rejected&&d.rejected.length)fazTrack('banner_reject');" .
 					"else fazTrack('banner_settings');" .
 				"});" .
 			"})();";
@@ -324,20 +274,6 @@ class Frontend {
 			return;
 		}
 		echo '<style id="faz-style-inline">[data-faz-tag]{visibility:hidden;}</style>';
-	}
-	/**
-	 * Add web app script on the header.
-	 *
-	 * Stub — is_connected() always returns false in local mode, so this
-	 * method returns immediately. Kept because it is registered via add_action
-	 * in the constructor.
-	 *
-	 * @return void
-	 */
-	public function insert_script() {
-		if ( false === $this->settings->is_connected() || true === faz_disable_banner() ) {
-			return;
-		}
 	}
 	/**
 	 * Load active banner.
@@ -851,6 +787,7 @@ class Frontend {
 			'.faz-btn-revisit',
 			'.faz-revisit-',
 			'.faz-hide',
+			'.faz-modal',
 		);
 
 		return preg_replace_callback(

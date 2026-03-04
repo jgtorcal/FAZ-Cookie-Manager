@@ -126,7 +126,6 @@ class Admin {
 			'consentlogs',
 			'scanner',
 			'pageviews',
-			'policies',
 			'cache',
 		);
 	}
@@ -388,23 +387,6 @@ class Admin {
 		}
 
 		include plugin_dir_path( __FILE__ ) . 'views/base.php';
-	}
-
-	/**
-	 * Get registered menus from each module.
-	 *
-	 * @param boolean $minify Whether to minify or not.
-	 * @return array
-	 */
-	public function get_registered_menus( $minify = false ) {
-		$menus = apply_filters( 'faz_registered_admin_menus', array() );
-		if ( true === $minify ) {
-			foreach ( $menus as $key => $menu ) {
-				unset( $menu['callback'] );
-				$menus[ $key ] = $menu;
-			}
-		}
-		return $menus;
 	}
 
 	/**

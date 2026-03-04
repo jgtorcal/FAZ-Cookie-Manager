@@ -101,7 +101,8 @@ class Settings extends Store {
 				'sites' => array(),
 			),
 			'iab'          => array(
-				'enabled' => false,
+				'enabled'      => false,
+				'publisher_cc' => '',
 			),
 			'geolocation'  => array(
 				'maxmind_license_key' => '',

@@ -94,6 +94,11 @@ defined( 'ABSPATH' ) || exit;
 					<span class="faz-toggle-label">Enable IAB TCF v2.3</span>
 				</label>
 			</div>
+			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">
+				<label for="faz-iab-publisher-cc" style="display:block;margin-bottom:4px;font-weight:600;">Publisher Country Code</label>
+				<input type="text" id="faz-iab-publisher-cc" data-path="iab.publisher_cc" maxlength="2" style="width:60px;text-transform:uppercase;" placeholder="IT">
+				<p class="description" style="margin-top:4px;color:var(--faz-text-secondary);">ISO 3166-1 alpha-2 code of the publisher's country (e.g. IT, DE, FR). Used in the TCF consent string.</p>
+			</div>
 		</div>
 	</div>
 

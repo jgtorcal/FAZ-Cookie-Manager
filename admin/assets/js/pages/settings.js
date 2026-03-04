@@ -23,8 +23,21 @@
 				data.banner_control.excluded_pages = data.banner_control.excluded_pages.join('\n');
 			}
 			FAZ.populateForm(form, data);
+			applyShowIf();
 		}).catch(function () {
 			FAZ.notify('Failed to load settings', 'error');
+		});
+	}
+
+	/** Show/hide elements based on data-show-if="path.to.checkbox" */
+	function applyShowIf() {
+		form.querySelectorAll('[data-show-if]').forEach(function (el) {
+			var path = el.getAttribute('data-show-if');
+			var src = form.querySelector('[data-path="' + path + '"]');
+			if (!src) return;
+			function toggle() { el.style.display = src.checked ? '' : 'none'; }
+			toggle();
+			src.addEventListener('change', toggle);
 		});
 	}
 

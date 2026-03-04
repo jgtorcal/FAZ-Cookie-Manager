@@ -188,9 +188,10 @@
 		// PurposeOneTreatment
 		pushBits(bits, 0, 1);
 
-		// PublisherCC (2 chars)
-		pushBits(bits, charTo6("I"), 6);  // IT by default
-		pushBits(bits, charTo6("T"), 6);
+		// PublisherCC (2 chars) — configurable via _fazTcfConfig, defaults to IT.
+		var publisherCC = (window._fazTcfConfig && window._fazTcfConfig.publisherCC) || "IT";
+		pushBits(bits, charTo6(publisherCC.charAt(0)), 6);
+		pushBits(bits, charTo6(publisherCC.charAt(1)), 6);
 
 		// MaxVendorConsentId = 0, EncodingType = 0
 		pushBits(bits, 0, 16);
