@@ -20,8 +20,16 @@
 
 	/**
 	 * Push a value as `length` bits into the bits array (MSB first).
+	 * Handles values > 32 bits by splitting into high/low parts.
 	 */
 	function pushBits(bits, value, length) {
+		if (length > 32) {
+			var highLen = length - 32;
+			var highVal = Math.floor(value / 4294967296); // value / 2^32
+			pushBits(bits, highVal, highLen);
+			pushBits(bits, value >>> 0, 32);
+			return;
+		}
 		var s = (value >>> 0).toString(2);
 		while (s.length < length) s = "0" + s;
 		s = s.substring(s.length - length);
