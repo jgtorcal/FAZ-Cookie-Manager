@@ -5,7 +5,16 @@ test.describe('GCM and IAB TCF behavior', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const gcm = await page.evaluate(() => {
-      const active = typeof window.gtag === 'function' || Array.isArray(window.dataLayer);
+      // Check multiple indicators: gtag function, standard dataLayer, or custom data layer names.
+      const hasGtag = typeof window.gtag === 'function';
+      const hasDataLayer = Array.isArray(window.dataLayer);
+      // Some setups use window.google_tag_data for GCM state.
+      const hasGoogleTagData =
+        typeof window.google_tag_data === 'object' &&
+        window.google_tag_data !== null &&
+        typeof window.google_tag_data.ics === 'object';
+
+      const active = hasGtag || hasDataLayer || hasGoogleTagData;
       if (!active) {
         return { active: false };
       }

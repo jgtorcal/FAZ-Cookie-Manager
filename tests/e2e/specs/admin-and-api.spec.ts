@@ -45,9 +45,16 @@ test.describe('Admin and REST integration', () => {
     expect(settingsResponse.payload).toBeTruthy();
     expect(settingsResponse.payload).toHaveProperty('geolocation');
 
+    // Nonce enforcement must be tested with a state-changing verb (POST/PUT),
+    // because WP REST cookie auth on GET silently downgrades to logged-out context.
     const badNonceStatus = await page.evaluate(async () => {
       const response = await fetch('/?rest_route=/faz/v1/settings/', {
-        headers: { 'X-WP-Nonce': 'invalid-nonce' },
+        method: 'POST',
+        headers: {
+          'X-WP-Nonce': 'invalid-nonce',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
       return response.status;
     });
@@ -73,5 +80,25 @@ test.describe('Admin and REST integration', () => {
 
     expect(cookiesResponse.status).toBe(200);
     expect(Array.isArray(cookiesResponse.payload)).toBeTruthy();
+  });
+
+  test('deprecated languages endpoint returns 410 Gone for admin', async ({ page, loginAsAdmin }) => {
+    await loginAsAdmin(page);
+    await page.goto('/wp-admin/admin.php?page=faz-cookie-manager-settings', { waitUntil: 'domcontentloaded' });
+
+    const langResponse = await page.evaluate(async () => {
+      const nonce = window.fazConfig?.api?.nonce ?? '';
+      const response = await fetch('/?rest_route=/faz/v1/languages/', {
+        headers: { 'X-WP-Nonce': nonce },
+      });
+      const payload = await response.json().catch(() => null);
+      return {
+        status: response.status,
+        code: payload?.code ?? null,
+      };
+    });
+
+    expect(langResponse.status).toBe(410);
+    expect(langResponse.code).toBe('faz_languages_gone');
   });
 });

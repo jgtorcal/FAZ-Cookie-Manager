@@ -4,7 +4,7 @@
  *
  * @link       https://fabiodalez.it/
  * @since      3.0.0
- * @package    FazCookie\Admin\Modules\Banners\Includes
+ * @package    FazCookie\Admin\Modules\Languages\Api
  */
 
 namespace FazCookie\Admin\Modules\Languages\Api;
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Cookies API
+ * Languages API
  *
  * @class       Api
  * @version     3.0.0
@@ -49,20 +49,49 @@ class Api extends Rest_Controller {
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ), 10 );
 	}
+
 	/**
-	 * Register the routes for cookies.
+	 * Register a deprecated 410 Gone route for the languages endpoint.
 	 *
+	 * Languages are now managed through the settings endpoint.
+	 *
+	 * @since 1.1.0
 	 * @return void
 	 */
 	public function register_routes() {
-		// Languages are saved via the settings endpoint (FAZ.post('settings')).
-		// No standalone language routes needed.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->rest_base,
+			array(
+				array(
+					'methods'             => WP_REST_Server::ALLMETHODS,
+					'callback'            => array( $this, 'deprecated_route' ),
+					'permission_callback' => function () {
+						return current_user_can( 'manage_options' );
+					},
+				),
+			)
+		);
 	}
 
 	/**
-	 * Format data to provide output to API
+	 * Return 410 Gone for the deprecated languages endpoint.
 	 *
-	 * @param object $object Object of the corresponding item Cookie or Cookie_Categories.
+	 * @since 1.1.0
+	 * @return WP_Error
+	 */
+	public function deprecated_route() {
+		return new WP_Error(
+			'faz_languages_gone',
+			__( 'This endpoint is deprecated. Use the settings endpoint instead.', 'faz-cookie-manager' ),
+			array( 'status' => 410 )
+		);
+	}
+
+	/**
+	 * Format data to provide output to API.
+	 *
+	 * @param object $object Object of the corresponding item.
 	 * @param array  $request Request params.
 	 * @return array
 	 */
@@ -74,14 +103,14 @@ class Api extends Rest_Controller {
 	}
 
 	/**
-	 * Get the Consent logs's schema, conforming to JSON Schema.
+	 * Get the Language's schema, conforming to JSON Schema.
 	 *
 	 * @return array
 	 */
 	public function get_item_schema() {
 		$schema = array(
 			'$schema'    => 'http://json-schema.org/draft-04/schema#',
-			'title'      => 'consentlogs',
+			'title'      => 'languages',
 			'type'       => 'object',
 			'properties' => array(
 				'id'          => array(

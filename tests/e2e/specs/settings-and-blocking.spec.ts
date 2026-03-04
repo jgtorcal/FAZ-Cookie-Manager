@@ -62,10 +62,13 @@ test.describe('Settings reflection and secure script blocking', () => {
     }
 
     const verifyContext = await browser.newContext({ baseURL: wpBaseURL });
-    const verifyPage = await verifyContext.newPage();
-    await verifyPage.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(verifyPage.locator('[data-faz-tag="notice"]')).toBeVisible();
-    await verifyContext.close();
+    try {
+      const verifyPage = await verifyContext.newPage();
+      await verifyPage.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(verifyPage.locator('[data-faz-tag="notice"]')).toBeVisible();
+    } finally {
+      await verifyContext.close();
+    }
   });
 
   test('analytics-tagged scripts stay blocked before consent and execute after accept', async ({ page }) => {

@@ -75,13 +75,14 @@ class Consent_Logger {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function handle_rest_consent( $request ) {
-		// Rate limit: 1 request per IP per second — silently skip DB insert on duplicate.
-		$ip_hash      = md5( $_SERVER['REMOTE_ADDR'] ?? 'unknown' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$throttle_key = 'faz_consent_throttle_' . $ip_hash;
-		if ( get_transient( $throttle_key ) ) {
+		// Rate limit: 1 request per IP+consent_id per second.
+		// Using consent_id in the key avoids colliding different users behind the same NAT.
+		$consent_id   = $request->get_param( 'consent_id' );
+		$throttle_key = 'faz_consent_' . substr( md5( $consent_id ?? '' ), 0, 8 );
+		if ( faz_throttle_request( $throttle_key ) ) {
+			error_log( '[FAZ Cookie Manager] Consent log throttled for consent_id: ' . sanitize_text_field( $consent_id ?? '' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return rest_ensure_response( array( 'throttled' => true ) );
 		}
-		set_transient( $throttle_key, 1, 1 );
 
 		$data = array(
 			'consent_id' => $request->get_param( 'consent_id' ),
