@@ -16,7 +16,7 @@ jobs:
       security-events: write
     strategy:
       matrix:
-        language: [ javascript, php ]
+        language: [ javascript ]
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
