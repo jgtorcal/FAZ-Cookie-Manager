@@ -561,6 +561,10 @@ class Frontend {
 			if ( false === $category->get_visibility() ) {
 				continue;
 			}
+			// Never show internal categories in the frontend banner.
+			if ( 'wordpress-internal' === $category->get_slug() ) {
+				continue;
+			}
 			$cookie_groups[] = array(
 				'name'           => $category->get_name( faz_current_language() ),
 				'slug'           => $category->get_slug(),

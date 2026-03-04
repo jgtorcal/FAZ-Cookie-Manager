@@ -1,5 +1,5 @@
 /**
- * FAZ Cookie Manager — Cookies Page JS
+ * FAZ Cookie Manager - Cookies Page JS
  */
 (function () {
 	'use strict';
@@ -531,7 +531,8 @@
 
 		var iframe = document.createElement('iframe');
 		iframe.style.cssText = 'width:1px;height:1px;border:none;';
-		iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+		// No sandbox: allow-scripts + allow-same-origin can escape sandboxing.
+		// This is admin-only code loading same-origin pages for cookie scanning.
 		container.appendChild(iframe);
 
 		var finished = false;
@@ -578,7 +579,7 @@
 					});
 				} catch (e) { /* cross-origin */ }
 			} catch (e) {
-				// Couldn't access iframe content — cross-origin or error.
+				// Couldn't access iframe content - cross-origin or error.
 			}
 
 			// Clean up iframe.
@@ -765,7 +766,7 @@
 			}
 			var count = meta.count || 0;
 			var updated = meta.updated_at || '';
-			el.textContent = count + ' cookie definitions loaded' + (updated ? ' — last updated: ' + updated : '');
+			el.textContent = count + ' cookie definitions loaded' + (updated ? ' - last updated: ' + updated : '');
 		}).catch(function () {
 			el.textContent = 'Could not load definitions status.';
 		});

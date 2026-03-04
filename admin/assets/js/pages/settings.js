@@ -1,5 +1,5 @@
 /**
- * FAZ Cookie Manager — Settings Page JS
+ * FAZ Cookie Manager - Settings Page JS
  */
 (function () {
 	'use strict';
@@ -91,7 +91,7 @@
 				b.textContent = 'Database: ';
 				el.appendChild(b);
 				el.appendChild(document.createTextNode(
-					data.database.file + ' (' + sizeKB + ' KB) — Last updated: ' + data.database.modified
+					data.database.file + ' (' + sizeKB + ' KB) - Last updated: ' + data.database.modified
 				));
 			} else {
 				el.textContent = 'No GeoIP database installed. Enter your license key and click "Update Database".';

@@ -1,5 +1,5 @@
 /**
- * FAZ Cookie Manager — IAB TCF v2.3 CMP
+ * FAZ Cookie Manager - IAB TCF v2.3 CMP
  *
  * Provides the window.__tcfapi() surface that ad-tech scripts expect.
  * Maps FAZ consent categories to TCF Purposes and generates a TC string
@@ -275,12 +275,12 @@
 		pushBits(bits, 0, 1); // UseNonStdTexts = false
 		pushBits(bits, 0, 12); // SpecialFeatureOptIns
 
-		// PurposesConsent — 24 bits
+		// PurposesConsent - 24 bits
 		for (var p = 1; p <= 24; p++) {
 			pushBits(bits, purposeConsent[String(p)] ? 1 : 0, 1);
 		}
 
-		// PurposesLegitimateInterest — 24 bits
+		// PurposesLegitimateInterest - 24 bits
 		for (var pl = 1; pl <= 24; pl++) {
 			pushBits(bits, purposeLI[String(pl)] ? 1 : 0, 1);
 		}
@@ -334,7 +334,7 @@
 	 * Write the euconsent-v2 cookie (standard TCF cookie name).
 	 */
 	function setEuconsentCookie(tcString) {
-		var expiry = 180; // days — matches FAZ consent cookie
+		var expiry = 180; // days - matches FAZ consent cookie
 		if (window._fazConfig && window._fazConfig._expiry) {
 			expiry = window._fazConfig._expiry;
 		}
@@ -376,6 +376,7 @@
 			tcfPolicyVersion:    TCF_POLICY_VERSION,
 			cmpId:               CMP_ID,
 			cmpVersion:          CMP_VERSION,
+			gvlVersion:          VENDOR_LIST,
 			gdprApplies:         (typeof cfg.gdprApplies !== "undefined") ? !!cfg.gdprApplies : true,
 			tcString:            tcString,
 			listenerId:          listenerIdVal || undefined,
@@ -431,7 +432,7 @@
 	}
 
 	/**
-	 * The __tcfapi() — implements required TCF v2.3 commands.
+	 * The __tcfapi() - implements required TCF v2.3 commands.
 	 */
 	function tcfapi(command, version, callback, parameter) {
 		if (typeof callback !== "function") return;

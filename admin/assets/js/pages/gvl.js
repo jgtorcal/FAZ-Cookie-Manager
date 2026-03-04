@@ -1,5 +1,5 @@
 /**
- * FAZ Cookie Manager — GVL (Vendor List) Page JS
+ * FAZ Cookie Manager - GVL (Vendor List) Page JS
  */
 (function () {
 	'use strict';

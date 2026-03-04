@@ -806,6 +806,21 @@ function _fazSetCheckboxes(
             const isChecked = elem.checked;
             elem.style.backgroundColor = isChecked ? activeColor : inactiveColor;
             _fazSetCheckBoxAriaLabel(boxElem, isChecked, formattedLabel);
+
+            // Sync the paired toggle (fazSwitch ↔ fazCategoryDirect).
+            const slug = category.slug;
+            const pairedId = key === 'fazCategoryDirect'
+                ? `fazSwitch${slug}`
+                : `fazCategoryDirect${slug}`;
+            const paired = document.getElementById(pairedId);
+            if (paired && paired.checked !== isChecked) {
+                paired.checked = isChecked;
+                const pairedToggle = key === 'fazCategoryDirect' ? prefToggle : (previewToggle || prefToggle);
+                const pairedActive = pairedToggle?.states?.active?.styles?.['background-color'] || '#1863dc';
+                const pairedInactive = pairedToggle?.states?.inactive?.styles?.['background-color'] || '#d0d5d2';
+                paired.style.backgroundColor = isChecked ? pairedActive : pairedInactive;
+                _fazSetCheckBoxAriaLabel(paired, isChecked, formattedLabel);
+            }
         });
     });
 }
@@ -1532,15 +1547,15 @@ window.revisitFazConsent = () => _revisitFazConsent();
 function _fazRenderVendorSection() {
     if (!_fazStore._iabEnabled || !_fazStore._iabVendors || !_fazStore._iabVendors.length) return;
 
-    // Find the preference center content area.
-    const prefCenter = document.querySelector('.faz-preference-body-content') ||
+    // Insert vendor section into the scrollable body area (not the footer).
+    const scrollBody = document.querySelector('.faz-preference-body-wrapper') ||
                        document.querySelector('.faz-preference-wrapper') ||
                        document.querySelector('.faz-modal');
-    if (!prefCenter) return;
+    if (!scrollBody) return;
 
-    // Find the save/accept button area to insert before it.
-    const footer = prefCenter.querySelector('.faz-preference-btn-wrapper') ||
-                   prefCenter.querySelector('[data-faz-tag="detail-accept-button"]')?.parentNode;
+    // Insert after the accordion wrapper (categories), inside the scrollable area.
+    const accordionWrapper = scrollBody.querySelector('.faz-accordion-wrapper') ||
+                             scrollBody.querySelector('[data-faz-tag="detail-categories"]');
 
     const section = document.createElement('div');
     section.className = 'faz-iab-vendors-section';
@@ -1579,52 +1594,73 @@ function _fazRenderVendorSection() {
 
         const item = document.createElement('div');
         item.className = 'faz-accordion-item';
-        item.style.cssText = 'padding:8px 0;border-bottom:1px solid #e5e7eb;';
 
-        // Header row.
+        // Chevron (matches category accordions).
+        const chevron = document.createElement('div');
+        chevron.className = 'faz-accordion-chevron';
+        const chevronIcon = document.createElement('i');
+        chevronIcon.className = 'faz-chevron-right';
+        chevron.appendChild(chevronIcon);
+        item.appendChild(chevron);
+
+        // Header wrapper (matches category accordions).
+        const headerWrapper = document.createElement('div');
+        headerWrapper.className = 'faz-accordion-header-wrapper';
+
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;cursor:pointer;';
+        header.className = 'faz-accordion-header';
 
         const nameBtn = document.createElement('button');
         nameBtn.className = 'faz-accordion-btn';
         nameBtn.type = 'button';
-        nameBtn.style.cssText = 'background:none;border:none;padding:0;font-size:13px;font-weight:500;cursor:pointer;text-align:left;flex:1;color:inherit;';
         nameBtn.textContent = vendor.name;
+        nameBtn.setAttribute('aria-label', vendor.name);
+        nameBtn.setAttribute('aria-expanded', 'false');
         header.appendChild(nameBtn);
 
-        // Toggle switch.
+        // Toggle switch (same structure as category toggles).
         const switchWrap = document.createElement('div');
         switchWrap.className = 'faz-switch';
-        switchWrap.style.cssText = 'flex-shrink:0;margin-left:8px;';
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.id = 'fazVendorSwitch' + vendor.id;
         cb.setAttribute('aria-label', 'Vendor consent: ' + vendor.name);
         cb.checked = existingConsent[vendor.id] === true;
-        cb.style.cssText = 'width:36px;height:20px;cursor:pointer;-webkit-appearance:none;appearance:none;border-radius:10px;border:none;position:relative;transition:background-color .2s;';
         cb.style.backgroundColor = cb.checked ? activeColor : inactiveColor;
         cb.addEventListener('change', function() {
             cb.style.backgroundColor = cb.checked ? activeColor : inactiveColor;
         });
         switchWrap.appendChild(cb);
         header.appendChild(switchWrap);
-        item.appendChild(header);
+        headerWrapper.appendChild(header);
 
-        // Purpose description.
-        const desc = document.createElement('div');
-        desc.style.cssText = 'font-size:11px;color:#6b7280;margin-top:2px;';
+        // Short purpose summary (matches category description area).
         const purposeLabels = (vendor.purposes || []).map(function(pid) {
             return purposeNames[pid] || ('Purpose ' + pid);
         });
-        if (purposeLabels.length) {
-            desc.textContent = 'Purposes: ' + purposeLabels.join(', ');
+        const liLabels = (vendor.legIntPurposes || []).map(function(pid) {
+            return purposeNames[pid] || ('Purpose ' + pid);
+        });
+        const allPurposeCount = purposeLabels.length + liLabels.length;
+        if (allPurposeCount > 0) {
+            const desc = document.createElement('div');
+            desc.className = 'faz-accordion-header-des';
+            const descP = document.createElement('p');
+            descP.textContent = allPurposeCount + ' purpose' + (allPurposeCount !== 1 ? 's' : '') +
+                (vendor.features && vendor.features.length ? ', ' + vendor.features.length + ' feature' + (vendor.features.length !== 1 ? 's' : '') : '');
+            desc.appendChild(descP);
+            headerWrapper.appendChild(desc);
         }
-        item.appendChild(desc);
 
-        // Expandable body.
+        item.appendChild(headerWrapper);
+
+        // Expandable body (details on click).
+        const bodyId = 'fazVendor' + vendor.id + 'Body';
         const body = document.createElement('div');
         body.className = 'faz-accordion-body';
-        body.style.cssText = 'display:none;padding:8px 0;font-size:12px;color:#374151;';
+        body.id = bodyId;
+        body.style.cssText = 'font-size:12px;color:#374151;padding:8px 0 8px 24px;';
+        nameBtn.setAttribute('aria-controls', bodyId);
 
         let safePolicyUrl = '';
         if (vendor.policyUrl) {
@@ -1646,36 +1682,51 @@ function _fazRenderVendorSection() {
             body.appendChild(document.createElement('br'));
         }
 
-        const details = [];
-        if (vendor.purposes && vendor.purposes.length) details.push('Consent: ' + vendor.purposes.join(', '));
-        if (vendor.legIntPurposes && vendor.legIntPurposes.length) details.push('LI: ' + vendor.legIntPurposes.join(', '));
-        if (vendor.features && vendor.features.length) details.push('Features: ' + vendor.features.join(', '));
-        if (vendor.cookieMaxAgeSeconds != null) {
-            details.push('Cookie retention: ' + Math.round(vendor.cookieMaxAgeSeconds / 86400) + ' days');
+        function appendDetail(parent, label, text) {
+            const p = document.createElement('p');
+            p.style.margin = '4px 0 0';
+            const b = document.createElement('strong');
+            b.textContent = label + ': ';
+            p.appendChild(b);
+            p.appendChild(document.createTextNode(text));
+            parent.appendChild(p);
         }
-        if (details.length) {
-            const detailP = document.createElement('p');
-            detailP.style.margin = '4px 0 0';
-            detailP.textContent = details.join(' | ');
-            body.appendChild(detailP);
+        if (purposeLabels.length) appendDetail(body, 'Consent', purposeLabels.join(', '));
+        if (liLabels.length) appendDetail(body, 'Legitimate Interest', liLabels.join(', '));
+        if (vendor.features && vendor.features.length) {
+            appendDetail(body, 'Features', vendor.features.map(function(fid) { return 'Feature ' + fid; }).join(', '));
+        }
+        if (vendor.cookieMaxAgeSeconds != null) {
+            appendDetail(body, 'Cookie retention', Math.round(vendor.cookieMaxAgeSeconds / 86400) + ' days');
         }
 
         accordion.appendChild(item);
         accordion.appendChild(body);
 
-        // Toggle body on header click.
-        nameBtn.addEventListener('click', function() {
-            const isOpen = body.style.display !== 'none';
+        // Toggle body on chevron/name click.
+        function toggleBody() {
+            const isOpen = body.style.display === 'block';
             body.style.display = isOpen ? 'none' : 'block';
-        });
+            nameBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+            if (isOpen) {
+                chevronIcon.classList.remove('faz-chevron-down');
+                chevronIcon.classList.add('faz-chevron-right');
+            } else {
+                chevronIcon.classList.remove('faz-chevron-right');
+                chevronIcon.classList.add('faz-chevron-down');
+            }
+        }
+        nameBtn.addEventListener('click', toggleBody);
+        chevron.addEventListener('click', toggleBody);
 
         section.appendChild(accordion);
     });
 
-    if (footer) {
-        footer.parentNode.insertBefore(section, footer);
+    if (accordionWrapper) {
+        // Insert right after the category accordion list, inside the scrollable area.
+        accordionWrapper.parentNode.insertBefore(section, accordionWrapper.nextSibling);
     } else {
-        prefCenter.appendChild(section);
+        scrollBody.appendChild(section);
     }
 }
 
