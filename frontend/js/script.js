@@ -196,8 +196,16 @@ ref._fazRandomString = function (length, allChars = true) {
     const chars = `${allChars ? `0123456789` : ""
         }ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`;
     const response = [];
+    var rng;
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+        var arr = new Uint32Array(length);
+        crypto.getRandomValues(arr);
+        rng = function(i) { return arr[i] % chars.length; };
+    } else {
+        rng = function() { return Math.floor(Math.random() * chars.length); };
+    }
     for (let i = 0; i < length; i++)
-        response.push(chars[Math.floor(Math.random() * chars.length)]);
+        response.push(chars[rng(i)]);
     if (!allChars) return response.join("");
     return btoa(response.join("")).replace(/\=+$/, "");
 }

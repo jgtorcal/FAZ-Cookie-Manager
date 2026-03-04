@@ -113,7 +113,7 @@ defined( 'ABSPATH' ) || exit;
 				<p class="description" style="margin-top:4px;color:var(--faz-text-secondary);">Set to true if Purpose 1 consent was NOT disclosed (e.g. publisher in a country where Purpose 1 is not required).</p>
 			</div>
 			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">
-				<div id="faz-gvl-status" style="padding:10px;border-radius:6px;background:var(--faz-bg-secondary);">
+				<div id="faz-gvl-status" role="status" aria-live="polite" aria-atomic="true" style="padding:10px;border-radius:6px;background:var(--faz-bg-secondary);">
 					<span style="color:var(--faz-text-secondary);">Loading GVL status...</span>
 				</div>
 				<button class="faz-btn faz-btn-secondary" id="faz-gvl-update" type="button" style="margin-top:8px;">Update GVL Now</button>

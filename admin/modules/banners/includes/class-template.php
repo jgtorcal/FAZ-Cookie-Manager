@@ -145,6 +145,7 @@ class Template {
 		add_action( 'faz_after_update_banner', array( $this, 'clear_template' ) );
 		add_action( 'faz_after_update_cookie_category', array( $this, 'clear_template' ) );
 		add_action( 'faz_after_update_cookie', array( $this, 'clear_template' ) );
+		add_action( 'faz_after_update_settings', array( $this, 'clear_template' ) );
 		add_action( 'faz_clear_cache', array( $this, 'clear_template' ) );
 	}
 

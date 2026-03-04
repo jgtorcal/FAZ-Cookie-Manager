@@ -139,6 +139,7 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 * Replaced all backward-compat constant aliases with FAZ_* equivalents
 * Cleaned up admin page slugs
 * Added PHPStan bootstrap for static analysis
+* Google Consent Mode v2 and IAB TCF v2.3 support
 
 = 1.0.4 =
 * Full uninstall/reinstall support with clean data removal
@@ -160,7 +161,6 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 = 1.0.0 =
 * Initial release based on CookieYes v3.4.0 fork
 * Full GDPR, CCPA, ePrivacy Directive compliance
-* Google Consent Mode v2 and IAB TCF v2.3 support
 * Self-hosted cookie scanner and consent logging
 
 == Upgrade Notice ==

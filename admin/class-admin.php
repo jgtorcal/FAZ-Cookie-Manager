@@ -277,9 +277,7 @@ class Admin {
 		);
 
 		// Enqueue page-specific JS if it exists.
-		if ( ! isset( $this->pages ) ) {
-			$this->pages = $this->get_admin_pages();
-		}
+		$this->ensure_pages_loaded();
 		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		foreach ( $this->pages as $page ) {
 			if ( $page['slug'] === $current_page ) {
@@ -340,9 +338,7 @@ class Admin {
 	 * @return void
 	 */
 	public function admin_menu() {
-		if ( ! isset( $this->pages ) ) {
-			$this->pages = $this->get_admin_pages();
-		}
+		$this->ensure_pages_loaded();
 		$capability = 'manage_options';
 		$parent     = self::ADMIN_SLUG;
 
@@ -376,9 +372,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_page() {
-		if ( ! isset( $this->pages ) ) {
-			$this->pages = $this->get_admin_pages();
-		}
+		$this->ensure_pages_loaded();
 		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : self::ADMIN_SLUG; // phpcs:ignore WordPress.Security.NonceVerification
 
 		$faz_page_title = '';
@@ -393,6 +387,17 @@ class Admin {
 		}
 
 		include plugin_dir_path( __FILE__ ) . 'views/base.php';
+	}
+
+	/**
+	 * Lazy-initialize the admin pages array if not already loaded.
+	 *
+	 * @return void
+	 */
+	private function ensure_pages_loaded() {
+		if ( ! isset( $this->pages ) ) {
+			$this->pages = $this->get_admin_pages();
+		}
 	}
 
 	/**
