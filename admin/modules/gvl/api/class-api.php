@@ -288,7 +288,13 @@ class Api extends Rest_Controller {
 		$vendor_ids = array_values( array_unique( $vendor_ids ) );
 
 		// Filter out vendor IDs not present in current GVL.
-		$gvl        = Gvl::get_instance();
+		$gvl = Gvl::get_instance();
+		if ( ! $gvl->has_data() ) {
+			return new \WP_REST_Response( array(
+				'success' => false,
+				'message' => __( 'GVL data not available. Please update GVL first.', 'faz-cookie-manager' ),
+			), 400 );
+		}
 		$existing   = $gvl->get_vendors( $vendor_ids );
 		$vendor_ids = array_map( 'absint', array_keys( $existing ) );
 		sort( $vendor_ids );

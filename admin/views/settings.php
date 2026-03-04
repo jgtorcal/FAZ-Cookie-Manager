@@ -42,8 +42,8 @@ defined( 'ABSPATH' ) || exit;
 				</label>
 			</div>
 			<div class="faz-form-group">
-				<label>Retention Period (days)</label>
-				<input type="number" class="faz-input faz-input-sm" data-path="consent_logs.retention" value="365" min="1" style="width:120px;">
+				<label>Retention Period (months)</label>
+				<input type="number" class="faz-input faz-input-sm" data-path="consent_logs.retention" value="12" min="1" max="120" style="width:120px;">
 			</div>
 		</div>
 	</div>
@@ -101,7 +101,7 @@ defined( 'ABSPATH' ) || exit;
 			</div>
 			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">
 				<label for="faz-iab-cmp-id" style="display:block;margin-bottom:4px;font-weight:600;">CMP ID</label>
-				<input type="number" id="faz-iab-cmp-id" class="faz-input faz-input-sm" data-path="iab.cmp_id" min="0" style="width:120px;" placeholder="0">
+				<input type="number" id="faz-iab-cmp-id" class="faz-input faz-input-sm" data-path="iab.cmp_id" min="0" max="4095" style="width:120px;" placeholder="0">
 				<p class="description" style="margin-top:4px;color:var(--faz-text-secondary);">Your registered IAB CMP ID. Use 0 for unregistered / self-hosted.</p>
 			</div>
 			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">

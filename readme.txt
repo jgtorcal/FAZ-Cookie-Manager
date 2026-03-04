@@ -139,7 +139,7 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 * Replaced all backward-compat constant aliases with FAZ_* equivalents
 * Cleaned up admin page slugs
 * Added PHPStan bootstrap for static analysis
-* Google Consent Mode v2 and IAB TCF v2.3 support
+* Google Consent Mode v2 support
 
 = 1.0.4 =
 * Full uninstall/reinstall support with clean data removal

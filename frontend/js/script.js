@@ -198,14 +198,21 @@ ref._fazRandomString = function (length, allChars = true) {
     const response = [];
     var rng;
     if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-        var arr = new Uint32Array(length);
-        crypto.getRandomValues(arr);
-        rng = function(i) { return arr[i] % chars.length; };
+        var u32 = new Uint32Array(1);
+        var limit = Math.floor(0x100000000 / chars.length) * chars.length;
+        rng = function() {
+            var v;
+            do {
+                crypto.getRandomValues(u32);
+                v = u32[0];
+            } while (v >= limit);
+            return v % chars.length;
+        };
     } else {
         rng = function() { return Math.floor(Math.random() * chars.length); };
     }
     for (let i = 0; i < length; i++)
-        response.push(chars[rng(i)]);
+        response.push(chars[rng()]);
     if (!allChars) return response.join("");
     return btoa(response.join("")).replace(/\=+$/, "");
 }
