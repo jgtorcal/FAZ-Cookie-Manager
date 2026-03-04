@@ -55,19 +55,8 @@ class Api extends Rest_Controller {
 	 * @return void
 	 */
 	public function register_routes() {
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base,
-			array(
-				array(
-					'methods'             => WP_REST_Server::CREATABLE,
-					'callback'            => array( $this, 'update_item' ),
-					'permission_callback' => array( $this, 'create_item_permissions_check' ),
-					'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ),
-				),
-				'schema' => array( $this, 'get_public_item_schema' ),
-			)
-		);
+		// Languages are saved via the settings endpoint (FAZ.post('settings')).
+		// No standalone language routes needed.
 	}
 
 	/**
