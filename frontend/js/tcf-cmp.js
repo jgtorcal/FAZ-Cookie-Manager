@@ -257,9 +257,8 @@
 		var vendorLI      = buildVendorLI(purposeConsent);
 		var purposeLI     = buildPurposeLI();
 
-		var now     = Math.round(Date.now() / 100);
-		var epoch   = Math.round(Date.UTC(2020, 0, 1) / 100);
-		var created = now - epoch;
+		// Deciseconds since Unix epoch (Jan 1, 1970) per IAB TCF spec.
+		var created = Math.round(Date.now() / 100);
 
 		pushBits(bits, TCF_VERSION, 6);
 		pushBits(bits, created, 36);

@@ -59,9 +59,21 @@ if ( defined( 'FAZ_REMOVE_ALL_DATA' ) && true === FAZ_REMOVE_ALL_DATA ) {
 			'faz_missing_tables',
 			'faz_migration_options',
 			'faz_banner_template',
+			'faz_gvl_data',
+			'faz_gvl_meta',
+			'faz_gvl_purposes',
+			'faz_gvl_selected_vendors',
 		);
 		foreach ( $faz_options as $option_name ) {
 			delete_option( $option_name );
+		}
+
+		// Remove GVL files.
+		$upload_dir = wp_upload_dir();
+		$gvl_dir    = $upload_dir['basedir'] . '/faz-cookie-manager/gvl';
+		if ( is_dir( $gvl_dir ) ) {
+			array_map( 'unlink', glob( $gvl_dir . '/*' ) );
+			rmdir( $gvl_dir );
 		}
 	} catch ( Exception $e ) {
 		error_log( __( 'Failed to delete FAZ Cookie Manager plugin data!', 'faz-cookie-manager' ) . ' ' . $e->getMessage() ); //phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

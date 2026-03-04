@@ -32,6 +32,13 @@ class Gvl {
 	private static $instance = null;
 
 	/**
+	 * Cached GVL data (avoids repeated get_option per request).
+	 *
+	 * @var array|false|null
+	 */
+	private $cached_data = null;
+
+	/**
 	 * Get singleton instance.
 	 *
 	 * @return self
@@ -93,6 +100,7 @@ class Gvl {
 
 		// Store in WP option (autoload=false — large data).
 		update_option( self::OPTION_KEY, $data, false );
+		$this->cached_data = $data;
 
 		// Store metadata.
 		update_option( self::META_KEY, array(
@@ -167,7 +175,10 @@ class Gvl {
 	 * @return array|false
 	 */
 	public function get_data() {
-		return get_option( self::OPTION_KEY, false );
+		if ( null === $this->cached_data ) {
+			$this->cached_data = get_option( self::OPTION_KEY, false );
+		}
+		return $this->cached_data;
 	}
 
 	/**
