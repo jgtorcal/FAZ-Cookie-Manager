@@ -102,10 +102,15 @@ class Api extends Rest_Controller {
 					'callback'            => array( $this, 'discover_urls' ),
 					'permission_callback' => array( $this, 'create_item_permissions_check' ),
 					'args'                => array(
-						'max_pages' => array(
+						'max_pages'   => array(
 							'type'              => 'integer',
 							'default'           => 20,
 							'sanitize_callback' => 'absint',
+						),
+						'fingerprint' => array(
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
 						),
 					),
 				),
@@ -292,13 +297,27 @@ class Api extends Rest_Controller {
 	 * @return \WP_REST_Response
 	 */
 	public function discover_urls( $request ) {
-		$max_pages = isset( $request['max_pages'] ) ? absint( $request['max_pages'] ) : 20;
-		$urls      = $this->controller->discover_pages_from_db( $max_pages );
+		$max_pages   = isset( $request['max_pages'] ) ? absint( $request['max_pages'] ) : 20;
+		$max_pages   = min( $max_pages, 2000 );
+		$fingerprint = isset( $request['fingerprint'] ) ? sanitize_text_field( $request['fingerprint'] ) : '';
+
+		$current_fingerprint = $this->controller->get_scan_fingerprint( $max_pages );
+		$incremental         = false;
+
+		if ( ! empty( $fingerprint ) && $fingerprint === $current_fingerprint ) {
+			// Nothing changed — return only priority URLs.
+			$urls        = $this->controller->get_priority_urls( $max_pages );
+			$incremental = true;
+		} else {
+			$urls = $this->controller->discover_pages_from_db( $max_pages );
+		}
 
 		return rest_ensure_response(
 			array(
-				'urls'  => array_values( $urls ),
-				'total' => count( $urls ),
+				'urls'        => array_values( $urls ),
+				'total'       => count( $urls ),
+				'fingerprint' => $current_fingerprint,
+				'incremental' => $incremental,
 			)
 		);
 	}
@@ -318,6 +337,7 @@ class Api extends Rest_Controller {
 		$raw_cookies   = isset( $body['cookies'] ) && is_array( $body['cookies'] ) ? $body['cookies'] : array();
 		$pages_scanned = isset( $body['pages_scanned'] ) ? absint( $body['pages_scanned'] ) : 0;
 		$scripts       = isset( $body['scripts'] ) && is_array( $body['scripts'] ) ? $body['scripts'] : array();
+		$metrics       = isset( $body['metrics'] ) && is_array( $body['metrics'] ) ? $body['metrics'] : array();
 
 		if ( empty( $raw_cookies ) && empty( $scripts ) ) {
 			return new \WP_Error(
@@ -353,7 +373,7 @@ class Api extends Rest_Controller {
 		// httpOnly cookies that JavaScript cannot read from document.cookie.
 		$this->controller->schedule_httponly_check();
 
-		$result = $this->controller->save_scan_result( $cookies, $pages_scanned, $clean_scripts );
+		$result = $this->controller->save_scan_result( $cookies, $pages_scanned, $clean_scripts, $metrics );
 
 		return rest_ensure_response( $result );
 	}
