@@ -8,6 +8,8 @@
 	var cookies = [];
 	var activeCat = 'all';   // category ID or 'all'
 	var activeCatName = '';  // display name for heading
+	var staleCookieNames = {};
+	var staleCookieCount = 0;
 
 	// Extract display string from a value that might be a multilingual object.
 	function textVal(val) {
@@ -100,16 +102,71 @@
 		}).catch(function (err) { console.error('FAZ: Failed to load categories', err); });
 	}
 
-	function loadCookies() {
+	function loadCookies(done) {
 		var params = {};
 		if (activeCat !== 'all') params.category = activeCat;
 		FAZ.get('cookies', params).then(function (data) {
 			cookies = Array.isArray(data) ? data : (data.items || []);
 			renderCookies();
+			if (typeof done === 'function') done();
 		}).catch(function () {
 			cookies = [];
 			renderCookies();
+			if (typeof done === 'function') done();
 		});
+	}
+
+	function getCookieId(cookie) {
+		return cookie.id || cookie.cookie_id;
+	}
+
+	function isDiscoveredCookie(cookie) {
+		return !!(cookie && (cookie.discovered === true || cookie.discovered === 1 || cookie.discovered === '1'));
+	}
+
+	function buildCookieNameSet(list, discoveredOnly) {
+		var set = {};
+		(list || []).forEach(function (cookie) {
+			var name = (cookie && cookie.name) ? String(cookie.name).trim() : '';
+			if (!name) return;
+			if (discoveredOnly && !isDiscoveredCookie(cookie)) return;
+			set[name] = true;
+		});
+		return set;
+	}
+
+	function setStaleCookies(previousSet, currentSet) {
+		staleCookieNames = {};
+		staleCookieCount = 0;
+		Object.keys(previousSet || {}).forEach(function (name) {
+			if (!currentSet || !currentSet[name]) {
+				staleCookieNames[name] = true;
+				staleCookieCount++;
+			}
+		});
+	}
+
+	function snapshotDiscoveredCookies() {
+		return FAZ.get('cookies').then(function (data) {
+			var list = Array.isArray(data) ? data : (data.items || []);
+			return buildCookieNameSet(list, true);
+		}).catch(function () {
+			return {};
+		});
+	}
+
+	function updateStaleBar(visibleStaleCount) {
+		var staleBar = document.getElementById('faz-stale-bar');
+		if (!staleBar) return;
+		if (staleCookieCount <= 0) {
+			staleBar.style.display = 'none';
+			staleBar.textContent = '';
+			return;
+		}
+		staleBar.style.display = 'block';
+		staleBar.textContent = visibleStaleCount > 0
+			? visibleStaleCount + ' cookie(s) not found in the latest scan are highlighted in red. You can remove them with "Delete stale".'
+			: staleCookieCount + ' cookie(s) not found in the latest scan (not visible in this filter).';
 	}
 
 	function renderCategories() {
@@ -178,6 +235,7 @@
 	function renderCookies() {
 		var tbody = document.getElementById('faz-cookies-tbody');
 		tbody.textContent = '';
+		var visibleStaleCount = 0;
 
 		// Reset select-all and bulk bar on re-render.
 		var selectAll = document.getElementById('faz-select-all-cookies');
@@ -194,17 +252,23 @@
 			td.appendChild(p);
 			tr.appendChild(td);
 			tbody.appendChild(tr);
+			updateStaleBar(0);
 			return;
 		}
 
 		cookies.forEach(function (cookie) {
 			var tr = document.createElement('tr');
+			var isStale = !!staleCookieNames[cookie.name];
+			if (isStale) {
+				tr.classList.add('faz-cookie-stale');
+				visibleStaleCount++;
+			}
 
 			var tdCheck = document.createElement('td');
 			var cb = document.createElement('input');
 			cb.type = 'checkbox';
 			cb.className = 'faz-cookie-check';
-			cb.value = cookie.id || cookie.cookie_id;
+			cb.value = getCookieId(cookie);
 			cb.setAttribute('aria-label', 'Select cookie ' + (cookie.name || ''));
 			cb.addEventListener('change', updateBulkBar);
 			tdCheck.appendChild(cb);
@@ -249,9 +313,23 @@
 			delBtn.addEventListener('click', function () { deleteCookie(cookie); });
 			tdActions.appendChild(delBtn);
 
+			if (isStale) {
+				var staleBtn = document.createElement('button');
+				staleBtn.className = 'faz-btn faz-btn-sm';
+				staleBtn.textContent = 'Delete stale';
+				staleBtn.style.background = '#fee2e2';
+				staleBtn.style.color = '#991b1b';
+				staleBtn.style.border = '1px solid #fecaca';
+				staleBtn.addEventListener('click', function () {
+					deleteStaleCookieQuick(cookie);
+				});
+				tdActions.appendChild(staleBtn);
+			}
+
 			tr.appendChild(tdActions);
 			tbody.appendChild(tr);
 		});
+		updateStaleBar(visibleStaleCount);
 	}
 
 	function updateBulkBar() {
@@ -383,13 +461,27 @@
 	function deleteCookie(cookie) {
 		FAZ.confirm('Delete cookie "' + (cookie.name || '') + '"?').then(function (ok) {
 			if (!ok) return;
-			FAZ.del('cookies/' + (cookie.id || cookie.cookie_id)).then(function () {
+			FAZ.del('cookies/' + getCookieId(cookie)).then(function () {
 				FAZ.notify('Cookie deleted');
 				loadCookies();
 				loadCategories();
 			}).catch(function () {
 				FAZ.notify('Failed to delete cookie', 'error');
 			});
+		});
+	}
+
+	function deleteStaleCookieQuick(cookie) {
+		FAZ.del('cookies/' + getCookieId(cookie)).then(function () {
+			if (cookie && cookie.name && staleCookieNames[cookie.name]) {
+				delete staleCookieNames[cookie.name];
+				staleCookieCount = Math.max(0, staleCookieCount - 1);
+			}
+			FAZ.notify('Stale cookie deleted');
+			loadCookies();
+			loadCategories();
+		}).catch(function () {
+			FAZ.notify('Failed to delete stale cookie', 'error');
 		});
 	}
 
@@ -500,8 +592,12 @@
 		var statusEl = document.createElement('span');
 		statusEl.className = 'faz-scan-status';
 		statusEl.textContent = 'Discovering pages...';
+		var pagesEl = document.createElement('div');
+		pagesEl.className = 'faz-scan-pages';
+		pagesEl.textContent = '0/0 pages';
 		progress.appendChild(bar);
 		progress.appendChild(statusEl);
+		progress.appendChild(pagesEl);
 		dropdown.parentNode.insertBefore(progress, dropdown.nextSibling);
 
 		var parsedMaxPages = parseInt(maxPages, 10);
@@ -539,53 +635,55 @@
 			console.warn('[FAZ Scanner] Cannot read fingerprint from localStorage — incremental scanning disabled.', e.message);
 		}
 
-		// Step 1: Ask server for URLs to scan.
-		FAZ.post('scans/discover', {
-			max_pages: requestPages,
-			fingerprint: safeMode ? '' : storedFingerprint,
-		}).then(function (result) {
-			scanMetrics.discoverMs = Date.now() - discoverStart;
-			scanMetrics.incremental = !!result.incremental;
-			var urls = deduplicateUrls(result.urls || []);
+		snapshotDiscoveredCookies().then(function (previousDiscoveredSet) {
+			// Step 1: Ask server for URLs to scan.
+			FAZ.post('scans/discover', {
+				max_pages: requestPages,
+				fingerprint: safeMode ? '' : storedFingerprint,
+			}).then(function (result) {
+				scanMetrics.discoverMs = Date.now() - discoverStart;
+				scanMetrics.incremental = !!result.incremental;
+				var urls = deduplicateUrls(result.urls || []);
 
-			// Store new fingerprint for next scan.
-			try {
-				if (result.fingerprint) localStorage.setItem('faz_scan_fingerprint', result.fingerprint);
-			} catch (e) {
-				console.warn('[FAZ Scanner] Cannot persist fingerprint — next scan will be full.', e.message);
-			}
-			scanMetrics.urlsDiscovered = urls.length;
+				// Store new fingerprint for next scan.
+				try {
+					if (result.fingerprint) localStorage.setItem('faz_scan_fingerprint', result.fingerprint);
+				} catch (e) {
+					console.warn('[FAZ Scanner] Cannot persist fingerprint — next scan will be full.', e.message);
+				}
+				scanMetrics.urlsDiscovered = urls.length;
 
-			if (!urls.length) {
-				finishScan(btn, progress, 'No pages found to scan.', true);
-				return;
-			}
-			statusEl.textContent = 'Scanning 0/' + urls.length + ' pages...';
-			bar.style.width = '0%';
+				if (!urls.length) {
+					finishScan(btn, progress, 'No pages found to scan.', true);
+					return;
+				}
+				statusEl.textContent = 'Scanning 0/' + urls.length + ' pages...';
+				pagesEl.textContent = '0/' + urls.length + ' pages';
+				bar.style.width = '0%';
 
-			var scanStart = Date.now();
+				var scanStart = Date.now();
 
-			// Step 2: Scan URLs concurrently.
-			scanUrlsConcurrent(urls, function (collectedCookies, collectedScripts, diagnostics) {
-				scanMetrics.scanMs = Date.now() - scanStart;
-				scanMetrics.cookiesFound = collectedCookies.length;
-				scanMetrics.scriptsFound = collectedScripts.length;
-				bar.style.width = '100%';
-				statusEl.textContent = 'Saving results...';
+				// Step 2: Scan URLs concurrently.
+				scanUrlsConcurrent(urls, function (collectedCookies, collectedScripts, diagnostics) {
+					scanMetrics.scanMs = Date.now() - scanStart;
+					scanMetrics.cookiesFound = collectedCookies.length;
+					scanMetrics.scriptsFound = collectedScripts.length;
+					bar.style.width = '100%';
+					statusEl.textContent = 'Saving results...';
 
-				var importStart = Date.now();
+					var importStart = Date.now();
 
-				// Step 3: Send results to server (strip pageTimes to avoid bloating payload).
-				var metricsToSend = {
-					discoverMs: scanMetrics.discoverMs,
-					scanMs: scanMetrics.scanMs,
-					urlsDiscovered: scanMetrics.urlsDiscovered,
-					cookiesFound: scanMetrics.cookiesFound,
-					scriptsFound: scanMetrics.scriptsFound,
-					earlyStopReason: scanMetrics.earlyStopReason,
-					pagesScanned: scanMetrics.pagesScanned,
-					incremental: scanMetrics.incremental,
-				};
+					// Step 3: Send results to server (strip pageTimes to avoid bloating payload).
+					var metricsToSend = {
+						discoverMs: scanMetrics.discoverMs,
+						scanMs: scanMetrics.scanMs,
+						urlsDiscovered: scanMetrics.urlsDiscovered,
+						cookiesFound: scanMetrics.cookiesFound,
+						scriptsFound: scanMetrics.scriptsFound,
+						earlyStopReason: scanMetrics.earlyStopReason,
+						pagesScanned: scanMetrics.pagesScanned,
+						incremental: scanMetrics.incremental,
+					};
 					FAZ.post('scans/import', {
 						cookies: collectedCookies,
 						pages_scanned: scanMetrics.pagesScanned,
@@ -594,9 +692,22 @@
 					}).then(function (res) {
 						scanMetrics.importMs = Date.now() - importStart;
 						var total = res.total_cookies || collectedCookies.length;
+						var currentDetectedSet = {};
+						if (res && Array.isArray(res.cookie_names) && res.cookie_names.length) {
+							res.cookie_names.forEach(function (name) {
+								if (name) currentDetectedSet[String(name)] = true;
+							});
+						} else {
+							currentDetectedSet = buildCookieNameSet(collectedCookies, false);
+						}
+						setStaleCookies(previousDiscoveredSet, currentDetectedSet);
+
 						var msg = 'Scan complete \u2014 ' + total + ' cookies found on ' + scanMetrics.pagesScanned + ' pages';
 						if (scanMetrics.earlyStopReason) {
 							msg += ' (early stop: ' + scanMetrics.earlyStopReason + ')';
+						}
+						if (staleCookieCount > 0) {
+							msg += ' | ' + staleCookieCount + ' stale cookie(s) highlighted';
 						}
 						msg += buildScanDiagnosticsHint(diagnostics, total);
 						console.log('[FAZ Scanner] Metrics:', scanMetrics);
@@ -604,20 +715,22 @@
 							console.warn('[FAZ Scanner] Diagnostics:', diagnostics);
 						}
 						finishScan(btn, progress, msg);
-						loadCookies();
-						loadCategories();
+						loadCookies(function () {
+							loadCategories();
+						});
 					}).catch(function (err) {
 						console.error('[FAZ Scanner] Import failed:', err);
 						var detail = buildScanApiErrorDetail(err);
 						finishScan(btn, progress, 'Scan finished but failed to save results.' + detail, true);
 					});
-				}, bar, statusEl, scanMetrics, scanOptions);
+				}, bar, statusEl, pagesEl, scanMetrics, scanOptions);
 			}).catch(function (err) {
 				console.error('[FAZ Scanner] Discover failed:', err);
 				var detail = buildScanApiErrorDetail(err);
 				finishScan(btn, progress, 'Failed to discover pages.' + detail, true);
 			});
-		}
+		});
+	}
 
 	function finishScan(btn, progress, message, isError) {
 		FAZ.btnLoading(btn, false);
@@ -633,9 +746,10 @@
 	 * @param {Function}  done        Callback(cookies, scripts) when all done.
 	 * @param {Element}   bar         Progress bar element.
 	 * @param {Element}   statusEl    Status text element.
+	 * @param {Element}   pagesEl     Pages counter element.
 	 * @param {object}    metrics     Metrics object to populate.
 	 */
-	function scanUrlsConcurrent(urls, done, bar, statusEl, metrics, options) {
+	function scanUrlsConcurrent(urls, done, bar, statusEl, pagesEl, metrics, options) {
 		options = options || {};
 		var enableEarlyStop = options.enableEarlyStop !== false;
 		var loadTimeoutMs = (typeof options.loadTimeoutMs === 'number' && options.loadTimeoutMs > 0) ? options.loadTimeoutMs : IFRAME_LOAD_TIMEOUT;
@@ -675,6 +789,7 @@
 		function updateProgress() {
 			var pct = Math.round((completed / total) * 100);
 			bar.style.width = pct + '%';
+			if (pagesEl) pagesEl.textContent = completed + '/' + total + ' pages';
 			var eta = '';
 			if (completed > 0) {
 				var etaMs = Math.round(((total - completed) * totalPageTime / completed) / CONCURRENCY);

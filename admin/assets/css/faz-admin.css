@@ -897,9 +897,29 @@
 	color: #fff;
 	mix-blend-mode: difference;
 }
+.faz-scan-pages {
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--faz-text-muted);
+	text-align: right;
+}
 @keyframes fazScanPulse {
 	0%, 100% { opacity: 0.7; }
 	50% { opacity: 1; }
+}
+
+.faz-stale-bar {
+	margin-bottom: 10px;
+	padding: 8px 12px;
+	font-size: 12px;
+	color: #991b1b;
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	border-radius: var(--faz-radius);
+}
+
+#faz-cookies-tbody tr.faz-cookie-stale td {
+	background: #fff5f5;
 }
 
 /* ── Utility ── */

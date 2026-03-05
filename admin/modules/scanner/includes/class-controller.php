@@ -780,6 +780,12 @@ class Controller {
 
 		$total_cookies = count( $unique );
 		$this->save_cookies( $unique );
+		$cookie_names = array();
+		foreach ( $unique as $item ) {
+			if ( isset( $item['name'] ) && '' !== $item['name'] ) {
+				$cookie_names[] = sanitize_text_field( $item['name'] );
+			}
+		}
 
 		$scan_id = absint( get_option( 'faz_scan_counter', 0 ) ) + 1;
 		update_option( 'faz_scan_counter', $scan_id );
@@ -820,6 +826,7 @@ class Controller {
 			'scan_id'       => $scan_id,
 			'total_cookies' => $total_cookies,
 			'pages_scanned' => $pages_scanned,
+			'cookie_names'  => array_values( array_unique( $cookie_names ) ),
 		);
 	}
 
