@@ -687,9 +687,20 @@
 
 		// Inject CSS
 		if (stylesHost) {
-			stylesHost.innerHTML =
-				'<style id="faz-preview-css">' + css + '</style>' +
-				'<style id="faz-preview-overrides">' + overrideCSS + '</style>';
+			while (stylesHost.firstChild) {
+				stylesHost.removeChild(stylesHost.firstChild);
+			}
+
+			var previewStyle = document.createElement('style');
+			previewStyle.id = 'faz-preview-css';
+			previewStyle.textContent = String(css || '');
+
+			var overrideStyle = document.createElement('style');
+			overrideStyle.id = 'faz-preview-overrides';
+			overrideStyle.textContent = String(overrideCSS || '');
+
+			stylesHost.appendChild(previewStyle);
+			stylesHost.appendChild(overrideStyle);
 		}
 
 		// Parse the server-rendered banner template and extract only the consent
@@ -767,15 +778,15 @@
 		var href = (noticeEl.privacyLink || getVal('faz-b-privacy-link') || '').trim() || '/cookie-policy';
 		if (!label) return;
 
-			// Build readmore element via DOM API (avoids XSS from unescaped values)
-			var el;
-			if (readMoreCfg.type === 'link') {
-				el = document.createElement('a');
-				el.href = sanitizeHttpUrl(href, true) || '/cookie-policy';
-				el.target = '_blank';
-				el.rel = 'noopener';
-			} else {
-			el = document.createElement('button');
+		// Build readmore element via DOM API (avoids XSS from unescaped values)
+		var el;
+		if (readMoreCfg.type === 'link') {
+			el = document.createElement('a');
+			el.href = sanitizeHttpUrl(href, true) || '/cookie-policy';
+			el.target = '_blank';
+			el.rel = 'noopener';
+		} else {
+				el = document.createElement('button');
 		}
 		el.className = 'faz-policy';
 		el.setAttribute('aria-label', label);
@@ -898,9 +909,10 @@
 	function updateBrandLogoPreview(url) {
 		var preview = document.getElementById('faz-b-brandlogo-preview');
 		var removeBtn = document.getElementById('faz-b-brandlogo-remove');
+		var safeUrl = sanitizeHttpUrl(url, false);
 		if (preview) {
-			if (url && url !== '#') {
-				preview.src = url;
+			if (safeUrl) {
+				preview.src = safeUrl;
 				preview.style.display = 'block';
 				if (removeBtn) removeBtn.style.display = '';
 			} else {
@@ -966,11 +978,17 @@
 		return obj.status === true || obj.status === 'true';
 	}
 	function ensureObj(obj, path) {
+		if (!obj || typeof obj !== 'object' || !path) return;
+		var blocked = { '__proto__': true, 'constructor': true, 'prototype': true };
 		var keys = path.split('.');
 		var cur = obj;
 		for (var i = 0; i < keys.length; i++) {
-			if (!cur[keys[i]] || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
-			cur = cur[keys[i]];
+			var key = keys[i];
+			if (blocked[key]) return;
+			if (!Object.prototype.hasOwnProperty.call(cur, key) || !cur[key] || typeof cur[key] !== 'object') {
+				cur[key] = Object.create(null);
+			}
+			cur = cur[key];
 		}
 	}
 
