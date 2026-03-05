@@ -716,7 +716,10 @@
 					var scriptEls = doc.querySelectorAll('script[src]');
 					scriptEls.forEach(function (s) {
 						var src = s.getAttribute('src') || '';
-						if (src) result.scripts.push(src);
+						if (src) {
+							try { src = new URL(src, parsedUrl.href).href; } catch (_u) {}
+							result.scripts.push(src);
+						}
 					});
 				} catch (e) { /* cross-origin */ }
 
@@ -724,7 +727,10 @@
 					var iframeEls = doc.querySelectorAll('iframe[src]');
 					iframeEls.forEach(function (f) {
 						var src = f.getAttribute('src') || '';
-						if (src) result.scripts.push(src);
+						if (src) {
+							try { src = new URL(src, parsedUrl.href).href; } catch (_u) {}
+							result.scripts.push(src);
+						}
 					});
 				} catch (e) { /* cross-origin */ }
 			} catch (e) { /* Couldn't access iframe content. */ }
@@ -742,6 +748,9 @@
 		// Adaptive settle: read immediately, wait 700ms, recheck.
 		// If stable, finish early. Otherwise wait 800ms more.
 		iframe.addEventListener('load', function () {
+			// Cancel the pre-load fallback timer — page loaded, settle phase starts.
+			if (timer) { clearTimeout(timer); timer = null; }
+
 			var firstRead = readIframe();
 			var firstCount = firstRead.cookies.length + firstRead.scripts.length;
 
@@ -763,7 +772,7 @@
 			}, 700);
 		});
 
-		// Timeout fallback in case load never fires.
+		// Timeout fallback in case load never fires (e.g. network error, 404).
 		timer = setTimeout(function () { finish(); }, IFRAME_LOAD_TIMEOUT);
 
 		// Navigate the iframe.

@@ -958,6 +958,11 @@ class Controller {
 	 * @return array List of URLs.
 	 */
 	public function get_priority_urls( $max ) {
+		$max = absint( $max );
+		if ( $max < 1 ) {
+			return array();
+		}
+
 		$home  = $this->normalize_url( home_url( '/' ) );
 		$pages = array( $home );
 		$seen  = array( $home => true );
