@@ -402,7 +402,8 @@
 	var EARLY_STOP_THRESHOLD = 5;    // Stop after N consecutive pages with no new findings.
 
 	/**
-	 * Normalize a URL: strip query/hash, ensure trailing slash.
+	 * Normalize a URL: strip hash, preserve query, ensure trailing slash.
+	 * Query params are kept by appending `u.search` to the normalized URL.
 	 */
 	function normalizeUrl(url) {
 		try {
@@ -447,7 +448,8 @@
 		progress.appendChild(statusEl);
 		dropdown.parentNode.insertBefore(progress, dropdown.nextSibling);
 
-		var requestPages = maxPages > 0 ? maxPages : 2000;
+		var parsedMaxPages = parseInt(maxPages, 10);
+		var requestPages = (isFinite(parsedMaxPages) && parsedMaxPages > 0) ? parsedMaxPages : 20;
 
 		// Metrics.
 		var scanMetrics = {

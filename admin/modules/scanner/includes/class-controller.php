@@ -274,11 +274,14 @@ class Controller {
 	}
 
 	/**
-	 * Normalize a URL for deduplication: strip query string and fragment,
-	 * ensure trailing slash consistency.
+	 * Normalize a URL for deduplication: remove fragment, preserve query string,
+	 * and enforce trailing slash consistency.
 	 *
-	 * @param string $url URL to normalize.
-	 * @return string Normalized URL.
+	 * No additional URL encoding/decoding is performed. The query string is
+	 * preserved as parsed and re-appended when present.
+	 *
+	 * @param string $url URL to normalize for deduplication.
+	 * @return string URL with normalized trailing slash, preserved query string, and no fragment.
 	 */
 	public function normalize_url( $url ) {
 		$parsed = wp_parse_url( $url );
@@ -853,7 +856,7 @@ class Controller {
 			return array();
 		}
 
-		$int_keys = array( 'discoverMs', 'scanMs', 'importMs', 'urlsDiscovered', 'cookiesFound', 'scriptsFound' );
+		$int_keys = array( 'discoverMs', 'scanMs', 'importMs', 'urlsDiscovered', 'cookiesFound', 'scriptsFound', 'pagesScanned' );
 		$clean    = array();
 		foreach ( $int_keys as $key ) {
 			$clean[ $key ] = isset( $metrics[ $key ] ) ? absint( $metrics[ $key ] ) : 0;
