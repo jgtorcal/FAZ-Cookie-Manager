@@ -3,7 +3,7 @@ Contributors: fabiodalez
 Tags: cookie, gdpr, ccpa, consent, privacy
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 Requires PHP: 7.4
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -117,6 +117,15 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 
 == Changelog ==
 
+= 1.2.1 =
+* Fix: CSV export no longer wraps data in JSON encoding — produces valid CSV files
+* Fix: consent log now correctly records "rejected" status when visitors click Reject All
+* Fix: consent logger skips page-load init events to prevent false "partial" entries for returning visitors
+* Security: prototype pollution guard in deepSet utility function (CodeQL)
+* Security: DOM XSS prevention — logo URL validated to https only, privacy link href sanitized (CodeQL)
+* Security: CSV export type guard and anti-cache headers for privacy
+* New: Composer/Packagist support — install via `composer require fabiodalez/faz-cookie-manager`
+
 = 1.2.0 =
 * Security: proxy header trust filter (faz_trust_proxy_headers) — proxy headers only parsed when explicitly enabled
 * Security: dual-guardrail consent throttle (per-IP + per-consent_id) to prevent flooding
@@ -175,6 +184,9 @@ Yes. The consent banner is rendered via JavaScript from a cached template, so it
 * Self-hosted cookie scanner and consent logging
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+Fixes CSV export formatting, consent log accuracy (rejected now tracked), and CodeQL security alerts. Adds Composer/Packagist support. Clear caches after upgrading.
 
 = 1.2.0 =
 Security hardening (proxy trust filter, dual-throttle consent logging, TTL normalization). Improved necessary toggle UX. Clear caches after upgrading.
