@@ -585,6 +585,8 @@
 		btn.textContent = 'Scanning...';
 
 		// Build progress UI.
+		var progressWrap = document.createElement('div');
+		progressWrap.className = 'faz-scan-progress-wrap';
 		var progress = document.createElement('div');
 		progress.className = 'faz-scan-progress';
 		var bar = document.createElement('div');
@@ -597,8 +599,15 @@
 		pagesEl.textContent = '0/0 pages';
 		progress.appendChild(bar);
 		progress.appendChild(statusEl);
-		progress.appendChild(pagesEl);
-		dropdown.parentNode.insertBefore(progress, dropdown.nextSibling);
+		progressWrap.appendChild(progress);
+		progressWrap.appendChild(pagesEl);
+		var card = dropdown.closest ? dropdown.closest('.faz-card') : null;
+		var cardHeader = card ? card.querySelector('.faz-card-header') : null;
+		if (card && cardHeader && cardHeader.parentNode) {
+			cardHeader.parentNode.insertBefore(progressWrap, cardHeader.nextSibling);
+		} else {
+			dropdown.parentNode.insertBefore(progressWrap, dropdown.nextSibling);
+		}
 
 		var parsedMaxPages = parseInt(maxPages, 10);
 		var requestPages = 20;
@@ -627,7 +636,11 @@
 		};
 		var discoverStart = Date.now();
 
-		// Get stored fingerprint for incremental scanning.
+		// Incremental mode is disabled for now because stale-cookie diffing
+		// requires a full baseline/scan comparison to be reliable.
+		var allowIncremental = false;
+
+		// Get stored fingerprint for optional incremental scanning.
 		var storedFingerprint = '';
 		try {
 			storedFingerprint = localStorage.getItem('faz_scan_fingerprint') || '';
@@ -639,10 +652,10 @@
 			// Step 1: Ask server for URLs to scan.
 			FAZ.post('scans/discover', {
 				max_pages: requestPages,
-				fingerprint: safeMode ? '' : storedFingerprint,
+				fingerprint: (!safeMode && allowIncremental) ? storedFingerprint : '',
 			}).then(function (result) {
 				scanMetrics.discoverMs = Date.now() - discoverStart;
-				scanMetrics.incremental = !!result.incremental;
+				scanMetrics.incremental = !!(allowIncremental && result.incremental);
 				var urls = deduplicateUrls(result.urls || []);
 
 				// Store new fingerprint for next scan.
@@ -654,7 +667,7 @@
 				scanMetrics.urlsDiscovered = urls.length;
 
 				if (!urls.length) {
-					finishScan(btn, progress, 'No pages found to scan.', true);
+					finishScan(btn, progressWrap, 'No pages found to scan.', true);
 					return;
 				}
 				statusEl.textContent = 'Scanning 0/' + urls.length + ' pages...';
@@ -720,20 +733,20 @@
 						if (diagnostics && diagnostics.totalIssues > 0) {
 							console.warn('[FAZ Scanner] Diagnostics:', diagnostics);
 						}
-						finishScan(btn, progress, msg);
+						finishScan(btn, progressWrap, msg);
 						loadCookies(function () {
 							loadCategories();
 						});
 					}).catch(function (err) {
 						console.error('[FAZ Scanner] Import failed:', err);
 						var detail = buildScanApiErrorDetail(err);
-						finishScan(btn, progress, 'Scan finished but failed to save results.' + detail, true);
+						finishScan(btn, progressWrap, 'Scan finished but failed to save results.' + detail, true);
 					});
 				}, bar, statusEl, pagesEl, scanMetrics, scanOptions);
 			}).catch(function (err) {
 				console.error('[FAZ Scanner] Discover failed:', err);
 				var detail = buildScanApiErrorDetail(err);
-				finishScan(btn, progress, 'Failed to discover pages.' + detail, true);
+				finishScan(btn, progressWrap, 'Failed to discover pages.' + detail, true);
 			});
 		});
 	}

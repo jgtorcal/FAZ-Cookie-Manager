@@ -867,8 +867,11 @@
 }
 
 /* ── Scan progress indicator ── */
-.faz-scan-progress {
+.faz-scan-progress-wrap {
 	margin-top: 10px;
+}
+.faz-scan-progress {
+	width: 100%;
 	background: var(--faz-border);
 	border-radius: 4px;
 	height: 24px;
