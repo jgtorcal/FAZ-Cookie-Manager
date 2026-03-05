@@ -173,8 +173,10 @@ class Api extends Rest_Controller {
 	/**
 	 * Export consent logs as CSV.
 	 *
+	 * Outputs raw CSV and exits to bypass WP REST JSON encoding.
+	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_REST_Response|WP_Error
+	 * @return void
 	 */
 	public function export_csv( $request ) {
 		$args = array(
@@ -184,11 +186,19 @@ class Api extends Rest_Controller {
 
 		$csv = Controller::get_instance()->export_csv( $args );
 
-		$response = new WP_REST_Response( $csv );
-		$response->header( 'Content-Type', 'text/csv; charset=utf-8' );
-		$response->header( 'Content-Disposition', 'attachment; filename="consent-logs-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		if ( ! is_string( $csv ) ) {
+			status_header( 500 );
+			exit;
+		}
 
-		return $response;
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="consent-logs-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+		header( 'Content-Length: ' . strlen( $csv ) );
+		echo $csv; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Raw CSV file download.
+		exit;
 	}
 
 	/**
