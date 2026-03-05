@@ -1,9 +1,32 @@
 {
     "name": "fabiodalez/faz-cookie-manager",
-    "description": "GDPR/CCPA cookie consent manager for WordPress",
+    "description": "The only cookie consent plugin you need. 100% free, zero cloud dependencies. Full GDPR, CCPA, ePrivacy, and IAB TCF v2.3 compliance.",
+    "type": "wordpress-plugin",
     "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Fabio D'Alessandro",
+            "homepage": "https://fabiodalez.it"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
     "require-dev": {
         "php-stubs/wordpress-stubs": "^6.9",
         "szepeviktor/phpstan-wordpress": "^2.0"
-    }
+    },
+    "support": {
+        "issues": "https://github.com/fabiodalez-dev/FAZ-Cookie-Manager/issues",
+        "source": "https://github.com/fabiodalez-dev/FAZ-Cookie-Manager"
+    },
+    "keywords": [
+        "wordpress",
+        "cookie",
+        "gdpr",
+        "ccpa",
+        "consent",
+        "privacy",
+        "iab-tcf"
+    ]
 }
