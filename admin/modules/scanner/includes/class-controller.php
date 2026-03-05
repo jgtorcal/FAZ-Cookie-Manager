@@ -857,6 +857,7 @@ class Controller {
 			$clean[ $key ] = isset( $metrics[ $key ] ) ? absint( $metrics[ $key ] ) : 0;
 		}
 		$clean['earlyStopReason'] = isset( $metrics['earlyStopReason'] ) ? sanitize_text_field( $metrics['earlyStopReason'] ) : '';
+		$clean['incremental']     = ! empty( $metrics['incremental'] );
 
 		return $clean;
 	}
@@ -972,7 +973,7 @@ class Controller {
 			array(
 				'post_type'              => array_values( $post_types ),
 				'post_status'            => 'publish',
-				'posts_per_page'         => $max,
+				'posts_per_page'         => max( 0, $max - 1 ),
 				'orderby'                => 'modified',
 				'order'                  => 'DESC',
 				'fields'                 => 'ids',
@@ -990,7 +991,7 @@ class Controller {
 
 		$this->collect_post_urls( $recent, $pages, $seen, $max );
 
-		return $pages;
+		return array_slice( $pages, 0, $max );
 	}
 
 	/**

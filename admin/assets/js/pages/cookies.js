@@ -601,9 +601,10 @@
 
 		function dispatch() {
 			while (active < CONCURRENCY && nextIndex < total && !stopped) {
-				scanOne(nextIndex);
+				var idx = nextIndex;
 				nextIndex++;
 				active++;
+				scanOne(idx);
 			}
 			if (active === 0 && (nextIndex >= total || stopped)) {
 				metrics.pagesScanned = completed;
@@ -750,6 +751,8 @@
 		iframe.addEventListener('load', function () {
 			// Cancel the pre-load fallback timer — page loaded, settle phase starts.
 			if (timer) { clearTimeout(timer); timer = null; }
+			// Settle watchdog: 700ms + 800ms + 200ms margin = 1700ms max.
+			timer = setTimeout(function () { finish(); }, 1700);
 
 			var firstRead = readIframe();
 			var firstCount = firstRead.cookies.length + firstRead.scripts.length;
