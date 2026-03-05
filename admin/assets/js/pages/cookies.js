@@ -430,6 +430,61 @@
 		return result;
 	}
 
+	function getApiErrorStatus(err) {
+		if (!err) return 0;
+		if (typeof err.status === 'number') return err.status;
+		if (err.data && typeof err.data.status === 'number') return err.data.status;
+		return 0;
+	}
+
+	function buildScanApiErrorDetail(err) {
+		var status = getApiErrorStatus(err);
+		var parts = [];
+		if (status === 401) {
+			parts.push('Session expired. Refresh the page and try again.');
+		} else if (status === 403) {
+			parts.push('Nonce/permissions error. Refresh the page and verify admin access.');
+		} else if (status === 409) {
+			parts.push('Another scan is already in progress.');
+		} else if (status === 413) {
+			parts.push('Request too large. Reduce scan depth and retry.');
+		} else if (status === 429) {
+			parts.push('Too many requests. Wait a moment and retry.');
+		} else if (status >= 500) {
+			parts.push('Server error. Check PHP/web server logs.');
+		} else if (status === 0) {
+			parts.push('Network/CORS/proxy issue while calling REST API.');
+		}
+		if (err && err.code) {
+			parts.push('Code: ' + err.code + '.');
+		}
+		if (err && err.message) {
+			parts.push(err.message);
+		}
+		return parts.length ? ' ' + parts.join(' ') : '';
+	}
+
+	function buildScanDiagnosticsHint(diagnostics, foundItems) {
+		if (!diagnostics || foundItems > 0) return '';
+		var hints = [];
+		if (diagnostics.crossOrigin > 0) {
+			hints.push('URL origin/protocol mismatch between admin and scanned pages');
+		}
+		if (diagnostics.iframeInaccessible > 0) {
+			hints.push('iframe access blocked (X-Frame-Options/CSP or cross-origin redirect)');
+		}
+		if (diagnostics.iframeTimeout > 0 || diagnostics.settleTimeout > 0) {
+			hints.push('pages too slow or blocked during iframe load');
+		}
+		if (diagnostics.missingContainer > 0) {
+			hints.push('scanner iframe container missing in page markup');
+		}
+		if (diagnostics.invalidUrl > 0) {
+			hints.push('invalid URLs discovered');
+		}
+		return hints.length ? ' Possible blockers: ' + hints.join('; ') + '.' : '';
+	}
+
 	function startScan(maxPages) {
 		var btn = document.getElementById('faz-scan-btn');
 		var dropdown = document.getElementById('faz-scan-dropdown');
@@ -499,7 +554,7 @@
 			var scanStart = Date.now();
 
 			// Step 2: Scan URLs concurrently.
-			scanUrlsConcurrent(urls, function (collectedCookies, collectedScripts) {
+			scanUrlsConcurrent(urls, function (collectedCookies, collectedScripts, diagnostics) {
 				scanMetrics.scanMs = Date.now() - scanStart;
 				scanMetrics.cookiesFound = collectedCookies.length;
 				scanMetrics.scriptsFound = collectedScripts.length;
@@ -519,48 +574,38 @@
 					pagesScanned: scanMetrics.pagesScanned,
 					incremental: scanMetrics.incremental,
 				};
-				FAZ.post('scans/import', {
-					cookies: collectedCookies,
-					pages_scanned: scanMetrics.pagesScanned,
-					scripts: collectedScripts,
-					metrics: metricsToSend,
-				}).then(function (res) {
-					scanMetrics.importMs = Date.now() - importStart;
-					var total = res.total_cookies || collectedCookies.length;
-					var msg = 'Scan complete \u2014 ' + total + ' cookies found on ' + scanMetrics.pagesScanned + ' pages';
-					if (scanMetrics.earlyStopReason) {
-						msg += ' (early stop: ' + scanMetrics.earlyStopReason + ')';
-					}
-					console.log('[FAZ Scanner] Metrics:', scanMetrics);
-					finishScan(btn, progress, msg);
-					loadCookies();
-					loadCategories();
-				}).catch(function (err) {
-					console.error('[FAZ Scanner] Import failed:', err);
-					var detail = '';
-					if (err && err.message) {
-						detail = ' ' + err.message;
-					} else if (err && err.status === 401) {
-						detail = ' Your session may have expired — try refreshing the page.';
-					} else if (err && err.status === 403) {
-						detail = ' Invalid nonce/permissions — try refreshing the page.';
-					} else if (err && err.status >= 500) {
-						detail = ' Server error — check your PHP error log.';
-					}
-					finishScan(btn, progress, 'Scan finished but failed to save results.' + detail, true);
-				});
-			}, bar, statusEl, scanMetrics);
-		}).catch(function (err) {
-			console.error('[FAZ Scanner] Discover failed:', err);
-			var detail = '';
-			if (err && err.status === 401) {
-				detail = ' Your session may have expired — try refreshing the page.';
-			} else if (err && err.status >= 500) {
-				detail = ' Server error — check your PHP error log.';
-			}
-			finishScan(btn, progress, 'Failed to discover pages.' + detail, true);
-		});
-	}
+					FAZ.post('scans/import', {
+						cookies: collectedCookies,
+						pages_scanned: scanMetrics.pagesScanned,
+						scripts: collectedScripts,
+						metrics: metricsToSend,
+					}).then(function (res) {
+						scanMetrics.importMs = Date.now() - importStart;
+						var total = res.total_cookies || collectedCookies.length;
+						var msg = 'Scan complete \u2014 ' + total + ' cookies found on ' + scanMetrics.pagesScanned + ' pages';
+						if (scanMetrics.earlyStopReason) {
+							msg += ' (early stop: ' + scanMetrics.earlyStopReason + ')';
+						}
+						msg += buildScanDiagnosticsHint(diagnostics, total);
+						console.log('[FAZ Scanner] Metrics:', scanMetrics);
+						if (diagnostics && diagnostics.totalIssues > 0) {
+							console.warn('[FAZ Scanner] Diagnostics:', diagnostics);
+						}
+						finishScan(btn, progress, msg);
+						loadCookies();
+						loadCategories();
+					}).catch(function (err) {
+						console.error('[FAZ Scanner] Import failed:', err);
+						var detail = buildScanApiErrorDetail(err);
+						finishScan(btn, progress, 'Scan finished but failed to save results.' + detail, true);
+					});
+				}, bar, statusEl, scanMetrics);
+			}).catch(function (err) {
+				console.error('[FAZ Scanner] Discover failed:', err);
+				var detail = buildScanApiErrorDetail(err);
+				finishScan(btn, progress, 'Failed to discover pages.' + detail, true);
+			});
+		}
 
 	function finishScan(btn, progress, message, isError) {
 		FAZ.btnLoading(btn, false);
@@ -581,6 +626,15 @@
 	function scanUrlsConcurrent(urls, done, bar, statusEl, metrics) {
 		var collectedCookies = [];
 		var collectedScripts = [];
+		var diagnostics = {
+			invalidUrl: 0,
+			crossOrigin: 0,
+			missingContainer: 0,
+			iframeInaccessible: 0,
+			iframeTimeout: 0,
+			settleTimeout: 0,
+			totalIssues: 0,
+		};
 		var cookieSet = {};    // O(1) dedup for cookie names.
 		var scriptSet = {};    // O(1) dedup for script URLs.
 		var nextIndex = 0;     // Next URL to dispatch.
@@ -627,7 +681,7 @@
 				metrics.pagesScanned = completed;
 				// Clean up any orphaned iframes.
 				try { document.getElementById('faz-scan-frame').textContent = ''; } catch (e) {}
-				done(collectedCookies, collectedScripts);
+				done(collectedCookies, collectedScripts, diagnostics);
 			}
 		}
 
@@ -643,6 +697,11 @@
 				totalPageTime += elapsed;
 
 				var foundNew = false;
+				var issue = pageResult.issue || '';
+				if (issue && diagnostics.hasOwnProperty(issue)) {
+					diagnostics[issue]++;
+					diagnostics.totalIssues++;
+				}
 
 				// Add page-detected cookies.
 				var pageCookies = pageResult.cookies || [];
@@ -690,14 +749,17 @@
 	 * @param {Function} done Callback({cookies, scripts}).
 	 */
 	function scanSingleUrl(url, done) {
-		var emptyResult = { cookies: [], scripts: [] };
+		function emptyResult(issue) {
+			return { cookies: [], scripts: [], issue: issue || '' };
+		}
+		var hadAccessError = false;
 
 		// Validate URL: only allow http/https same-origin pages.
 		var parsedUrl;
 		try {
 			parsedUrl = new URL(url, window.location.origin);
 		} catch (_unused) {
-			done(emptyResult);
+			done(emptyResult('invalidUrl'));
 			return;
 		}
 
@@ -705,8 +767,12 @@
 		var isSameOriginHttp = (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
 			parsedUrl.origin === window.location.origin;
 
-		if (!isSameOriginHttp || !container) {
-			done(emptyResult);
+		if (!isSameOriginHttp) {
+			done(emptyResult('crossOrigin'));
+			return;
+		}
+		if (!container) {
+			done(emptyResult('missingContainer'));
 			return;
 		}
 
@@ -720,12 +786,12 @@
 		var timer = null;
 
 		function readIframe() {
-			var result = { cookies: [], scripts: [] };
+			var result = { cookies: [], scripts: [], issue: '' };
 			try {
 				var doc = iframe.contentDocument || iframe.contentWindow.document;
 
 				var iframeCookieStr = '';
-				try { iframeCookieStr = doc.cookie || ''; } catch (e) { /* cross-origin */ }
+				try { iframeCookieStr = doc.cookie || ''; } catch (e) { hadAccessError = true; }
 				if (iframeCookieStr) {
 					result.cookies = parseCookieString(iframeCookieStr, location.hostname);
 				}
@@ -739,7 +805,7 @@
 							result.scripts.push(src);
 						}
 					});
-				} catch (e) { /* cross-origin */ }
+				} catch (e) { hadAccessError = true; }
 
 				try {
 					var iframeEls = doc.querySelectorAll('iframe[src]');
@@ -750,8 +816,11 @@
 							result.scripts.push(src);
 						}
 					});
-				} catch (e) { /* cross-origin */ }
-			} catch (e) { /* Couldn't access iframe content. */ }
+				} catch (e) { hadAccessError = true; }
+			} catch (e) { hadAccessError = true; }
+			if (hadAccessError && !result.cookies.length && !result.scripts.length) {
+				result.issue = 'iframeInaccessible';
+			}
 			return result;
 		}
 
@@ -760,7 +829,8 @@
 			finished = true;
 			if (timer) clearTimeout(timer);
 			try { container.removeChild(iframe); } catch (e) {}
-			done(result || readIframe());
+			var finalResult = result || readIframe();
+			done(finalResult);
 		}
 
 		// Adaptive settle: read immediately, wait 700ms, recheck.
@@ -769,7 +839,7 @@
 			// Cancel the pre-load fallback timer — page loaded, settle phase starts.
 			if (timer) { clearTimeout(timer); timer = null; }
 			// Settle watchdog: 700ms + 800ms + 200ms margin = 1700ms max.
-			timer = setTimeout(function () { finish(); }, 1700);
+			timer = setTimeout(function () { finish(emptyResult('settleTimeout')); }, 1700);
 
 			var firstRead = readIframe();
 			var firstCount = firstRead.cookies.length + firstRead.scripts.length;
@@ -793,7 +863,7 @@
 		});
 
 		// Timeout fallback in case load never fires (e.g. network error, 404).
-		timer = setTimeout(function () { finish(); }, IFRAME_LOAD_TIMEOUT);
+		timer = setTimeout(function () { finish(emptyResult('iframeTimeout')); }, IFRAME_LOAD_TIMEOUT);
 
 		// Navigate the iframe.
 		iframe.src = parsedUrl.href;
