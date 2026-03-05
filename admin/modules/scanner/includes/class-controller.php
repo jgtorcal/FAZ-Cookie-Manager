@@ -55,6 +55,11 @@ class Controller {
 	const CRON_HOOK = 'faz_async_cookie_scan';
 
 	/**
+	 * WP-Cron action name for async httpOnly cookie checks.
+	 */
+	const HTTPONLY_CRON_HOOK = 'faz_async_httponly_cookie_check';
+
+	/**
 	 * Last scan info.
 	 *
 	 * @var array|null
@@ -78,6 +83,7 @@ class Controller {
 	 */
 	public static function register_cron_hook() {
 		add_action( self::CRON_HOOK, array( self::get_instance(), 'run_scan_async' ) );
+		add_action( self::HTTPONLY_CRON_HOOK, array( self::get_instance(), 'run_httponly_check' ) );
 	}
 
 	/**
@@ -151,9 +157,10 @@ class Controller {
 	 * @return void
 	 */
 	public function schedule_httponly_check() {
-		// Lightweight fallback: scan only homepage when exec is unavailable.
+		// Fallback for hosts without exec/system: enqueue via WP-Cron to avoid blocking imports.
 		if ( ! $this->can_spawn_background_process() ) {
-			$this->run_httponly_check();
+			wp_clear_scheduled_hook( self::HTTPONLY_CRON_HOOK );
+			wp_schedule_single_event( time() + 1, self::HTTPONLY_CRON_HOOK );
 			return;
 		}
 
@@ -379,6 +386,11 @@ class Controller {
 	 * @return array List of URLs.
 	 */
 	public function discover_pages_from_db( $max ) {
+		$max = absint( $max );
+		if ( $max < 1 ) {
+			return array();
+		}
+
 		$home    = $this->normalize_url( home_url( '/' ) );
 		$pages   = array( $home );
 		$seen    = array( $home => true );

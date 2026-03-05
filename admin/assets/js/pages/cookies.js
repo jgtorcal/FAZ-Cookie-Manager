@@ -965,8 +965,26 @@
 		}
 
 		var container = document.getElementById('faz-scan-frame');
-		var isSameOriginHttp = (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
-			parsedUrl.origin === window.location.origin;
+		var currentUrl;
+		try {
+			currentUrl = new URL(window.location.href);
+		} catch (_unused2) {
+			currentUrl = window.location;
+		}
+
+		function normalizedHostPort(u) {
+			var hostname = String(u.hostname || '').toLowerCase().replace(/^www\./, '');
+			var port = u.port;
+			if (!port) {
+				port = (u.protocol === 'https:') ? '443' : '80';
+			}
+			return hostname + ':' + port;
+		}
+
+		var isHttpProtocol = (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:');
+		var isSameOriginHttp = isHttpProtocol &&
+			parsedUrl.protocol === currentUrl.protocol &&
+			normalizedHostPort(parsedUrl) === normalizedHostPort(currentUrl);
 
 		if (!isSameOriginHttp) {
 			done(emptyResult('crossOrigin'));
