@@ -283,6 +283,7 @@ class Frontend {
 				);
 				$inline_js = "document.addEventListener('fazcookie_consent_update',function(e){" .
 					"var d=e.detail||{};" .
+					"if(!d.action||d.action==='init')return;" .
 					"if(typeof _fazConsentLog==='undefined')return;" .
 					"fetch(_fazConsentLog.restUrl,{" .
 						"method:'POST'," .
