@@ -289,8 +289,9 @@ class Controller {
 		$host   = $parsed['host'];
 		$port   = isset( $parsed['port'] ) ? ':' . $parsed['port'] : '';
 		$path   = isset( $parsed['path'] ) ? $parsed['path'] : '/';
+		$query  = isset( $parsed['query'] ) && '' !== $parsed['query'] ? '?' . $parsed['query'] : '';
 
-		return trailingslashit( $scheme . '://' . $host . $port . $path );
+		return trailingslashit( $scheme . '://' . $host . $port . $path ) . $query;
 	}
 
 	/**
@@ -837,6 +838,7 @@ class Controller {
 			$cookie->set_discovered( true );
 
 			Cookie_Controller::get_instance()->create_item( $cookie );
+			$existing_names[ $cookie_data['name'] ] = true;
 		}
 	}
 

@@ -297,7 +297,8 @@ class Api extends Rest_Controller {
 	 * @return \WP_REST_Response
 	 */
 	public function discover_urls( $request ) {
-		$max_pages   = min( absint( $request['max_pages'] ), 2000 );
+		$requested   = absint( $request['max_pages'] );
+		$max_pages   = ( $requested > 0 ) ? min( $requested, 2000 ) : 20;
 		$fingerprint = $request['fingerprint'];
 
 		$current_fingerprint = $this->controller->get_scan_fingerprint( $max_pages );

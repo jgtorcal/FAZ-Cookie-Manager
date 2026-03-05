@@ -407,7 +407,7 @@
 	function normalizeUrl(url) {
 		try {
 			var u = new URL(url, window.location.origin);
-			return u.origin + u.pathname.replace(/\/?$/, '/');
+			return u.origin + u.pathname.replace(/\/?$/, '/') + u.search;
 		} catch (_unused) {
 			return url;
 		}
