@@ -142,6 +142,10 @@
 .faz-grid-sidebar {
 	grid-template-columns: 260px 1fr;
 }
+/* Allow the main column to shrink so table overflow stays inside .faz-table-wrap */
+.faz-grid-sidebar > * {
+	min-width: 0;
+}
 
 @media (max-width: 1024px) {
 	.faz-grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -307,6 +311,7 @@
 
 /* ── Tables ── */
 .faz-table-wrap {
+	max-width: 100%;
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
 }
@@ -867,11 +872,14 @@
 }
 
 /* ── Scan progress indicator ── */
-.faz-scan-progress {
+.faz-scan-progress-wrap {
 	margin-top: 10px;
+}
+.faz-scan-progress {
+	width: 100%;
 	background: var(--faz-border);
 	border-radius: 4px;
-	height: 22px;
+	height: 24px;
 	position: relative;
 	overflow: hidden;
 }
@@ -880,7 +888,7 @@
 	width: 30%;
 	background: var(--faz-primary);
 	border-radius: 4px;
-	animation: fazScanPulse 1.5s ease-in-out infinite;
+	animation: faz-scan-pulse 1.5s ease-in-out infinite;
 	transition: width 0.4s ease;
 }
 .faz-scan-status {
@@ -895,11 +903,56 @@
 	font-size: 11px;
 	font-weight: 500;
 	color: #fff;
-	mix-blend-mode: difference;
+	mix-blend-mode: normal;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
 }
-@keyframes fazScanPulse {
+.faz-scan-pages {
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--faz-text-muted);
+	text-align: right;
+}
+@keyframes faz-scan-pulse {
 	0%, 100% { opacity: 0.7; }
 	50% { opacity: 1; }
+}
+
+.faz-stale-bar {
+	margin-bottom: 10px;
+	padding: 8px 12px;
+	font-size: 12px;
+	color: #991b1b;
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	border-radius: var(--faz-radius);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.faz-stale-bar > span {
+	flex: 1 1 auto;
+	text-align: left;
+}
+
+.faz-stale-delete-all {
+	margin-left: auto;
+	flex: 0 0 auto;
+	background: #991b1b;
+	color: #fff;
+	border: 1px solid #7f1d1d;
+}
+
+.faz-stale-delete-all:hover {
+	background: #7f1d1d;
+	color: #fff;
+	border-color: #7f1d1d;
+}
+
+#faz-cookies-tbody tr.faz-cookie-stale td {
+	background: #fff5f5;
 }
 
 /* ── Utility ── */

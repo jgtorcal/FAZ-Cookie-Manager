@@ -79,6 +79,7 @@ class Activator {
 		add_action( 'init', array( __CLASS__, 'check_version' ), 5 );
 		add_action( 'admin_init', array( __CLASS__, 'ensure_uncategorized_category' ) );
 		add_action( 'admin_init', array( __CLASS__, 'ensure_wordpress_internal_category' ) );
+		add_action( 'admin_init', array( __CLASS__, 'rename_advertisement_to_marketing' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_download_cookie_definitions' ) );
 		add_action( 'faz_daily_cleanup', array( __CLASS__, 'run_retention_cleanup' ) );
 		add_action( 'faz_weekly_gvl_update', array( 'FazCookie\Includes\Gvl', 'cron_update' ) );
@@ -376,6 +377,69 @@ class Activator {
 			'name'        => 'WordPress Internal',
 			'description' => 'Cookies set by WordPress core for logged-in administrators. Not shown to site visitors.',
 		), false, false );
+	}
+
+	/**
+	 * Rename the legacy "advertisement" category slug to "marketing".
+	 * Idempotent — skips if "marketing" already exists or "advertisement" is gone.
+	 */
+	public static function rename_advertisement_to_marketing() {
+		if ( get_option( 'faz_migrated_advert_to_marketing' ) ) {
+			return; // Already completed.
+		}
+
+		global $wpdb;
+		$table   = $wpdb->prefix . 'faz_cookie_categories';
+		$old_id  = $wpdb->get_var( $wpdb->prepare( "SELECT category_id FROM {$table} WHERE slug = %s LIMIT 1", 'advertisement' ) );
+		$new_id  = $wpdb->get_var( $wpdb->prepare( "SELECT category_id FROM {$table} WHERE slug = %s LIMIT 1", 'marketing' ) );
+
+		// 1. Rename or merge category slug.
+		if ( $old_id && ! $new_id ) {
+			// Simple rename.
+			$wpdb->update( $table, array( 'slug' => 'marketing' ), array( 'slug' => 'advertisement' ) );
+		} elseif ( $old_id && $new_id ) {
+			// Both exist — reassign cookies from old to new, then delete legacy row.
+			$cookies_table = $wpdb->prefix . 'faz_cookies';
+			$wpdb->update( $cookies_table, array( 'category_id' => $new_id ), array( 'category_id' => $old_id ) );
+			$wpdb->delete( $table, array( 'category_id' => $old_id ) );
+		}
+
+		// 2. Fix display name: rename "Advertisement" → "Marketing" in all languages.
+		$name_json = $wpdb->get_var( $wpdb->prepare( "SELECT name FROM {$table} WHERE slug = %s LIMIT 1", 'marketing' ) );
+		if ( $name_json ) {
+			$names = json_decode( $name_json, true );
+			if ( is_array( $names ) ) {
+				$changed = false;
+				foreach ( $names as $lang => $val ) {
+					if ( 'Advertisement' === $val ) {
+						$names[ $lang ] = 'Marketing';
+						$changed        = true;
+					}
+				}
+				if ( $changed ) {
+					$wpdb->update( $table, array( 'name' => wp_json_encode( $names ) ), array( 'slug' => 'marketing' ) );
+				}
+			}
+		}
+
+		// 3. Rename key in saved GCM region settings.
+		$gcm = get_option( 'faz_gcm_settings' );
+		if ( is_array( $gcm ) && ! empty( $gcm['default_settings'] ) && is_array( $gcm['default_settings'] ) ) {
+			$changed = false;
+			foreach ( $gcm['default_settings'] as &$region ) {
+				if ( is_array( $region ) && isset( $region['advertisement'] ) && ! isset( $region['marketing'] ) ) {
+					$region['marketing'] = $region['advertisement'];
+					unset( $region['advertisement'] );
+					$changed = true;
+				}
+			}
+			unset( $region );
+			if ( $changed ) {
+				update_option( 'faz_gcm_settings', $gcm );
+			}
+		}
+
+		update_option( 'faz_migrated_advert_to_marketing', 1, false );
 	}
 
 	/**

@@ -69,9 +69,15 @@ const fazcookieConsentMap = (currentCookieMap["fazcookie-consent"] || "")
  * @returns {string}
  */
 ref._fazGetCookie = function (name) {
-    const match = new RegExp(`${name}=([^;]+)`).exec(document.cookie);  // eslint-disable-line no-useless-escape
-    if (!match || !Array.isArray(match) || !match[1]) return null;
-    try { return decodeURIComponent(match[1]); } catch (_) { return match[1]; }
+    const prefix = name + '=';
+    const cookies = document.cookie.split('; ');
+    for (var i = 0; i < cookies.length; i++) {
+        if (cookies[i].indexOf(prefix) === 0) {
+            var val = cookies[i].substring(prefix.length);
+            try { return decodeURIComponent(val); } catch (_) { return val; }
+        }
+    }
+    return null;
 }
 
 /**
@@ -89,9 +95,10 @@ ref._fazSetCookie = function (name, value, days = 0, domain = _fazStore._rootDom
     }
     const toSetTime =
         days === 0 ? 0 : date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+    const secure = location.protocol === 'https:' ? ' Secure;' : '';
     document.cookie = `${name}=${value}; expires=${new Date(
         toSetTime
-    ).toUTCString()}; path=/;${domain}; SameSite=Strict;`;
+    ).toUTCString()}; path=/;${domain}; SameSite=Lax;${secure}`;
 }
 
 function _fazSetConsentID() {
@@ -118,9 +125,6 @@ function _fazGetElementByTag(tag) {
     return item ? item : false;
 }
 
-function _fazEscapeRegex(literal) {
-    return literal.replace(/[.*+?^${}()[\]\\]/g, "\\$&");
-}
 
 /**
  * Bind click event to banner elements.
@@ -1234,9 +1238,18 @@ function _fazIsCategoryToBeBlocked(category) {
 }
 
 function _fazShouldBlockProvider(formattedRE) {
-    const provider = _fazStore._providersToBlock.find(({ re }) =>
-        new RegExp(_fazEscapeRegex(re)).test(formattedRE)
-    );
+    if (!formattedRE) return false;
+    const provider = _fazStore._providersToBlock.find(({ re }) => {
+        if (!re) return false;
+        var idx = formattedRE.indexOf(re);
+        if (idx === -1) return false;
+        // Boundary check: character before must be empty, /, . or protocol separator.
+        if (idx > 0) {
+            var before = formattedRE.charAt(idx - 1);
+            if (before !== '/' && before !== '.' && before !== ':') return false;
+        }
+        return true;
+    });
     return (
         provider &&
         provider.categories.some((category) => _fazIsCategoryToBeBlocked(category))

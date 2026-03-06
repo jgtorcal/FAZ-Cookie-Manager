@@ -610,8 +610,31 @@
 		FAZ.post('banners/preview', payload).then(function (result) {
 			renderPreview(result.html || '', result.styles || '', hiddenTags);
 		}).catch(function () {
-			host.innerHTML = '<div style="padding:24px;color:#94a3b8;text-align:center;">Preview unavailable</div>';
+			var errDiv = document.createElement('div');
+			errDiv.style.cssText = 'padding:24px;color:#94a3b8;text-align:center;';
+			errDiv.textContent = 'Preview unavailable';
+			host.textContent = '';
+			host.appendChild(errDiv);
 		});
+	}
+
+	function sanitizeHttpUrl(raw, allowRelativePath) {
+		if (typeof raw !== 'string') return '';
+		var value = raw.trim();
+		if (!value) return '';
+		try {
+			var parsed;
+			if (allowRelativePath && value.charAt(0) === '/' && value.charAt(1) !== '/') {
+				parsed = new URL(value, window.location.origin);
+				if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+				return parsed.pathname + parsed.search + parsed.hash;
+			}
+			parsed = new URL(value);
+			if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+			return parsed.href;
+		} catch (_unused) {
+			return '';
+		}
 	}
 
 	function renderPreview(html, css, hiddenTags) {
@@ -668,17 +691,27 @@
 
 		// Inject CSS
 		if (stylesHost) {
-			stylesHost.innerHTML =
-				'<style id="faz-preview-css">' + css + '</style>' +
-				'<style id="faz-preview-overrides">' + overrideCSS + '</style>';
+			while (stylesHost.firstChild) {
+				stylesHost.removeChild(stylesHost.firstChild);
+			}
+
+			var previewStyle = document.createElement('style');
+			previewStyle.id = 'faz-preview-css';
+			previewStyle.textContent = String(css || '');
+
+			var overrideStyle = document.createElement('style');
+			overrideStyle.id = 'faz-preview-overrides';
+			overrideStyle.textContent = String(overrideCSS || '');
+
+			stylesHost.appendChild(previewStyle);
+			stylesHost.appendChild(overrideStyle);
 		}
 
 		// Parse the server-rendered banner template and extract only the consent
-		// bar (.faz-consent-container). The full template includes overlay, revisit
-		// widget, preference center, and opt-out popup - none needed for preview.
-		var tempDiv = document.createElement('div');
-		tempDiv.innerHTML = html; // Trusted admin-only content from our own API
-		var container = tempDiv.querySelector('.faz-consent-container');
+		// bar (.faz-consent-container). Uses DOMParser for safe inert parsing
+		// (scripts won't execute). Content is trusted admin-only API output.
+		var parsed = new DOMParser().parseFromString(html, 'text/html');
+		var container = parsed.querySelector('.faz-consent-container');
 		while (host.firstChild) host.removeChild(host.firstChild);
 		if (!container) {
 			var fallback = document.createElement('div');
@@ -716,11 +749,21 @@
 		// Inject readmore link (not in template - frontend JS adds it dynamically)
 		attachPreviewReadMore(host);
 
-		// Update brand logo src from our form field
-		var logoUrl = getVal('faz-b-brandlogo-url');
-		if (logoUrl && /^https?:\/\//.test(logoUrl)) {
+		// Update brand logo src from our form field.
+		// Keep validation inline so static analyzers can verify protocol checks.
+		var logoUrlRaw = (getVal('faz-b-brandlogo-url') || '').trim();
+		var logoUrlSafe = '';
+		try {
+			if (logoUrlRaw) {
+				var parsedLogoUrl = new URL(logoUrlRaw, window.location.origin);
+				if (parsedLogoUrl.protocol === 'http:' || parsedLogoUrl.protocol === 'https:') {
+					logoUrlSafe = parsedLogoUrl.href;
+				}
+			}
+		} catch (_unused2) {}
+		if (logoUrlSafe) {
 			host.querySelectorAll('[data-faz-tag="brand-logo"] img').forEach(function (img) {
-				img.setAttribute('src', logoUrl);
+				img.src = logoUrlSafe;
 			});
 		}
 
@@ -752,8 +795,23 @@
 		var el;
 		if (readMoreCfg.type === 'link') {
 			el = document.createElement('a');
-			if (!/^https?:\/\/|^\/[^\/]/.test(href)) href = '/cookie-policy';
-			el.href = href;
+			var hrefRaw = String(href || '').trim();
+			var safeHref = '/cookie-policy';
+			try {
+				if (hrefRaw) {
+					var parsedHref = new URL(hrefRaw, window.location.origin);
+					var isHttpHref = parsedHref.protocol === 'http:' || parsedHref.protocol === 'https:';
+					var isRelativePath = hrefRaw.charAt(0) === '/' && hrefRaw.charAt(1) !== '/';
+					if (isHttpHref) {
+						if (isRelativePath && parsedHref.origin === window.location.origin) {
+							safeHref = parsedHref.pathname + parsedHref.search + parsedHref.hash;
+						} else if (hrefRaw.indexOf('http://') === 0 || hrefRaw.indexOf('https://') === 0) {
+							safeHref = parsedHref.href;
+						}
+					}
+				}
+			} catch (_unused3) {}
+			el.href = safeHref;
 			el.target = '_blank';
 			el.rel = 'noopener';
 		} else {
@@ -880,9 +938,10 @@
 	function updateBrandLogoPreview(url) {
 		var preview = document.getElementById('faz-b-brandlogo-preview');
 		var removeBtn = document.getElementById('faz-b-brandlogo-remove');
+		var safeUrl = sanitizeHttpUrl(url, false);
 		if (preview) {
-			if (url && url !== '#') {
-				preview.src = url;
+			if (safeUrl) {
+				preview.src = safeUrl;
 				preview.style.display = 'block';
 				if (removeBtn) removeBtn.style.display = '';
 			} else {
@@ -948,11 +1007,17 @@
 		return obj.status === true || obj.status === 'true';
 	}
 	function ensureObj(obj, path) {
+		if (!obj || typeof obj !== 'object' || !path) return;
+		var blocked = { '__proto__': true, 'constructor': true, 'prototype': true };
 		var keys = path.split('.');
 		var cur = obj;
 		for (var i = 0; i < keys.length; i++) {
-			if (!cur[keys[i]] || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
-			cur = cur[keys[i]];
+			var key = keys[i];
+			if (blocked[key]) return;
+			if (!Object.prototype.hasOwnProperty.call(cur, key) || !cur[key] || typeof cur[key] !== 'object') {
+				cur[key] = Object.create(null);
+			}
+			cur = cur[key];
 		}
 	}
 

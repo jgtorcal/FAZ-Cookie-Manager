@@ -102,7 +102,7 @@ defined( 'ABSPATH' ) || exit;
 			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">
 				<label for="faz-iab-cmp-id" style="display:block;margin-bottom:4px;font-weight:600;">CMP ID</label>
 				<input type="number" id="faz-iab-cmp-id" class="faz-input faz-input-sm" data-path="iab.cmp_id" min="0" max="4095" style="width:120px;" placeholder="0">
-				<p class="description" style="margin-top:4px;color:var(--faz-text-secondary);">Your registered IAB CMP ID. Use 0 for unregistered / self-hosted.</p>
+				<p class="description" style="margin-top:4px;color:var(--faz-text-secondary);">Your registered IAB CMP ID (<a href="https://iabeurope.eu/cmp-list/" target="_blank" rel="noopener noreferrer">IAB CMP List</a>). With ID&nbsp;0 the banner and cookie blocking work normally, but ad-tech vendors will ignore the TC String. Google Consent Mode v2 works regardless of CMP registration.</p>
 			</div>
 			<div class="faz-form-group" data-show-if="iab.enabled" style="margin-top:12px;">
 				<label class="faz-toggle">

@@ -299,19 +299,20 @@
 	};
 
 	FAZ.deepSet = function (obj, path, value) {
+		if (!obj || typeof obj !== 'object' || !path) return;
+		// Paths come from trusted data-path attributes in admin HTML templates.
+		// Reject any path containing prototype-pollution keys as a defense-in-depth measure.
+		if (/(?:^|\.)(__proto__|constructor|prototype)(?:\.|$)/.test(path)) return;
 		var keys = path.split('.');
-		var BLOCKED = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
 		var cur = obj;
 		for (var i = 0; i < keys.length - 1; i++) {
-			if (BLOCKED[keys[i]]) return;
-			if (cur[keys[i]] === undefined || cur[keys[i]] === null || typeof cur[keys[i]] !== 'object') {
-				cur[keys[i]] = {};
+			var segment = keys[i];
+			if (!Object.prototype.hasOwnProperty.call(cur, segment) || cur[segment] === null || typeof cur[segment] !== 'object') {
+				cur[segment] = {};
 			}
-			cur = cur[keys[i]];
+			cur = cur[segment];
 		}
-		var lastKey = keys[keys.length - 1];
-		if (BLOCKED[lastKey]) return;
-		cur[lastKey] = value;
+		cur[keys[keys.length - 1]] = value;
 	};
 
 	// ── Serialize form to nested JSON using data-path ────────

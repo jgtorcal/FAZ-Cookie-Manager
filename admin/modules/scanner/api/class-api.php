@@ -102,10 +102,15 @@ class Api extends Rest_Controller {
 					'callback'            => array( $this, 'discover_urls' ),
 					'permission_callback' => array( $this, 'create_item_permissions_check' ),
 					'args'                => array(
-						'max_pages' => array(
+						'max_pages'   => array(
 							'type'              => 'integer',
 							'default'           => 20,
 							'sanitize_callback' => 'absint',
+						),
+						'fingerprint' => array(
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
 						),
 					),
 				),
@@ -271,15 +276,28 @@ class Api extends Rest_Controller {
 	 */
 	public function get_scan_info() {
 		// Force re-read from DB (don't use cached value).
-		$data = get_option( 'faz_scan_details', array(
+		$defaults = array(
 			'id'            => 0,
 			'status'        => '',
 			'type'          => 'local',
 			'date'          => '',
 			'total_cookies' => 0,
 			'pages_scanned' => 0,
-		) );
-		return rest_ensure_response( $data );
+		);
+		$data = get_option( 'faz_scan_details', $defaults );
+		if ( ! is_array( $data ) ) {
+			$data = $defaults;
+		}
+		// Sanitize output values.
+		$safe = array(
+			'id'            => isset( $data['id'] ) ? absint( $data['id'] ) : 0,
+			'status'        => isset( $data['status'] ) ? sanitize_text_field( $data['status'] ) : '',
+			'type'          => isset( $data['type'] ) ? sanitize_text_field( $data['type'] ) : 'local',
+			'date'          => isset( $data['date'] ) ? sanitize_text_field( $data['date'] ) : '',
+			'total_cookies' => isset( $data['total_cookies'] ) ? absint( $data['total_cookies'] ) : 0,
+			'pages_scanned' => isset( $data['pages_scanned'] ) ? absint( $data['pages_scanned'] ) : 0,
+		);
+		return rest_ensure_response( $safe );
 	}
 
 	/**
@@ -292,13 +310,27 @@ class Api extends Rest_Controller {
 	 * @return \WP_REST_Response
 	 */
 	public function discover_urls( $request ) {
-		$max_pages = isset( $request['max_pages'] ) ? absint( $request['max_pages'] ) : 20;
-		$urls      = $this->controller->discover_pages_from_db( $max_pages );
+		$requested   = absint( $request['max_pages'] );
+		$max_pages   = ( $requested > 0 ) ? min( $requested, 2000 ) : 20;
+		$fingerprint = $request['fingerprint'];
+
+		$current_fingerprint = $this->controller->get_scan_fingerprint( $max_pages );
+		$incremental         = false;
+
+		if ( ! empty( $fingerprint ) && ! empty( $current_fingerprint ) && $fingerprint === $current_fingerprint ) {
+			// Nothing changed — return only priority URLs.
+			$urls        = $this->controller->get_priority_urls( $max_pages );
+			$incremental = true;
+		} else {
+			$urls = $this->controller->discover_pages_from_db( $max_pages );
+		}
 
 		return rest_ensure_response(
 			array(
-				'urls'  => array_values( $urls ),
-				'total' => count( $urls ),
+				'urls'        => array_values( $urls ),
+				'total'       => count( $urls ),
+				'fingerprint' => $current_fingerprint,
+				'incremental' => $incremental,
 			)
 		);
 	}
@@ -315,17 +347,14 @@ class Api extends Rest_Controller {
 	public function import_cookies( $request ) {
 		$body = $request->get_json_params();
 
+		if ( empty( $body ) || ! is_array( $body ) ) {
+			return new \WP_Error( 'invalid_payload', __( 'Empty or invalid request body.', 'faz-cookie-manager' ), array( 'status' => 400 ) );
+		}
+
 		$raw_cookies   = isset( $body['cookies'] ) && is_array( $body['cookies'] ) ? $body['cookies'] : array();
 		$pages_scanned = isset( $body['pages_scanned'] ) ? absint( $body['pages_scanned'] ) : 0;
 		$scripts       = isset( $body['scripts'] ) && is_array( $body['scripts'] ) ? $body['scripts'] : array();
-
-		if ( empty( $raw_cookies ) && empty( $scripts ) ) {
-			return new \WP_Error(
-				'faz_rest_no_data',
-				__( 'No cookies or scripts provided.', 'faz-cookie-manager' ),
-				array( 'status' => 400 )
-			);
-		}
+		$metrics       = isset( $body['metrics'] ) && is_array( $body['metrics'] ) ? $body['metrics'] : array();
 
 		// Sanitize cookie data.
 		$cookies = array();
@@ -353,7 +382,7 @@ class Api extends Rest_Controller {
 		// httpOnly cookies that JavaScript cannot read from document.cookie.
 		$this->controller->schedule_httponly_check();
 
-		$result = $this->controller->save_scan_result( $cookies, $pages_scanned, $clean_scripts );
+		$result = $this->controller->save_scan_result( $cookies, $pages_scanned, $clean_scripts, $metrics );
 
 		return rest_ensure_response( $result );
 	}

@@ -55,6 +55,11 @@ class Controller {
 	const CRON_HOOK = 'faz_async_cookie_scan';
 
 	/**
+	 * WP-Cron action name for async httpOnly cookie checks.
+	 */
+	const HTTPONLY_CRON_HOOK = 'faz_async_httponly_cookie_check';
+
+	/**
 	 * Last scan info.
 	 *
 	 * @var array|null
@@ -78,6 +83,7 @@ class Controller {
 	 */
 	public static function register_cron_hook() {
 		add_action( self::CRON_HOOK, array( self::get_instance(), 'run_scan_async' ) );
+		add_action( self::HTTPONLY_CRON_HOOK, array( self::get_instance(), 'run_httponly_check' ) );
 	}
 
 	/**
@@ -93,6 +99,22 @@ class Controller {
 	public function schedule_scan( $max_pages = 20 ) {
 		$max_pages = absint( $max_pages );
 		$abspath   = ABSPATH;
+
+		// Fallback for shared hosts where exec/system calls are disabled.
+		if ( ! $this->can_spawn_background_process() ) {
+			update_option( 'faz_scan_max_pages', $max_pages );
+
+			// If WP-Cron is disabled, run inline as a last-resort fallback.
+			if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+				$this->run_scan( $max_pages );
+				return $this->get_info();
+			}
+
+			wp_clear_scheduled_hook( self::CRON_HOOK );
+			wp_schedule_single_event( time() + 1, self::CRON_HOOK );
+
+			return $this->get_info();
+		}
 
 		// Try WP-CLI first (most reliable).
 		$wp_cli = $this->find_wp_cli();
@@ -135,6 +157,26 @@ class Controller {
 	 * @return void
 	 */
 	public function schedule_httponly_check() {
+		// Fallback for hosts without exec/system: enqueue via WP-Cron to avoid blocking imports.
+		if ( ! $this->can_spawn_background_process() ) {
+			wp_clear_scheduled_hook( self::HTTPONLY_CRON_HOOK );
+			wp_schedule_single_event( time() + 1, self::HTTPONLY_CRON_HOOK );
+			if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+				$cron_spawn = wp_remote_post(
+					site_url( '/wp-cron.php?doing_wp_cron=' . rawurlencode( sprintf( '%.22F', microtime( true ) ) ) ),
+					array(
+						'timeout'  => 0.5,
+						'blocking' => false,
+					)
+				);
+				if ( is_wp_error( $cron_spawn ) ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( '[FAZ Scanner] Unable to trigger wp-cron for httpOnly check: ' . $cron_spawn->get_error_message() );
+				}
+			}
+			return;
+		}
+
 		$abspath = ABSPATH;
 		$wp_cli  = $this->find_wp_cli();
 
@@ -187,6 +229,10 @@ class Controller {
 	 * @return string|false Path to wp binary, or false if not found.
 	 */
 	private function find_wp_cli() {
+		if ( ! $this->can_spawn_background_process() ) {
+			return false;
+		}
+
 		$output = array();
 		$code   = 0;
 		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec
@@ -202,6 +248,25 @@ class Controller {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Check if shell process spawning is available on this host.
+	 *
+	 * @return bool
+	 */
+	private function can_spawn_background_process() {
+		if ( ! function_exists( 'exec' ) ) {
+			return false;
+		}
+
+		$disabled = (string) ini_get( 'disable_functions' );
+		if ( '' === trim( $disabled ) ) {
+			return true;
+		}
+
+		$list = array_map( 'trim', explode( ',', $disabled ) );
+		return ! in_array( 'exec', $list, true );
 	}
 
 	/**
@@ -274,6 +339,56 @@ class Controller {
 	}
 
 	/**
+	 * Normalize a URL for deduplication: remove fragment, preserve query string,
+	 * and enforce trailing slash consistency.
+	 *
+	 * No additional URL encoding/decoding is performed. The query string is
+	 * preserved as parsed and re-appended when present.
+	 *
+	 * @param string $url URL to normalize for deduplication.
+	 * @return string URL with normalized trailing slash, preserved query string, and no fragment.
+	 */
+	public function normalize_url( $url ) {
+		$parsed = wp_parse_url( $url );
+		if ( ! $parsed || empty( $parsed['host'] ) ) {
+			return trailingslashit( $url );
+		}
+		$scheme = isset( $parsed['scheme'] ) ? $parsed['scheme'] : 'http';
+		$host   = $parsed['host'];
+		$port   = isset( $parsed['port'] ) ? ':' . $parsed['port'] : '';
+		$path   = isset( $parsed['path'] ) ? $parsed['path'] : '/';
+		$query  = isset( $parsed['query'] ) && '' !== $parsed['query'] ? '?' . $parsed['query'] : '';
+
+		return trailingslashit( $scheme . '://' . $host . $port . $path ) . $query;
+	}
+
+	/**
+	 * Collect normalized, deduplicated permalink URLs from an array of post IDs.
+	 *
+	 * @param int[]  $post_ids Post IDs to resolve permalinks for.
+	 * @param array  &$pages   Pages array to append to (passed by reference).
+	 * @param array  &$seen    Seen-URL hash map (passed by reference).
+	 * @param int    $max      Maximum total pages to collect.
+	 * @return void
+	 */
+	private function collect_post_urls( $post_ids, &$pages, &$seen, $max ) {
+		foreach ( $post_ids as $post_id ) {
+			$url = get_permalink( $post_id );
+			if ( ! $url ) {
+				continue;
+			}
+			$normalized = $this->normalize_url( $url );
+			if ( ! isset( $seen[ $normalized ] ) ) {
+				$seen[ $normalized ] = true;
+				$pages[]             = $normalized;
+				if ( count( $pages ) >= $max ) {
+					break;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Discover pages using WordPress database queries (no HTTP requests).
 	 *
 	 * Used by the browser-based scanner's discover endpoint to avoid
@@ -284,29 +399,32 @@ class Controller {
 	 * @return array List of URLs.
 	 */
 	public function discover_pages_from_db( $max ) {
-		$pages = array( home_url( '/' ) );
+		$max = absint( $max );
+		if ( $max < 1 ) {
+			return array();
+		}
+
+		$home    = $this->normalize_url( home_url( '/' ) );
+		$pages   = array( $home );
+		$seen    = array( $home => true );
 
 		// Get published posts and pages.
 		$post_types = get_post_types( array( 'public' => true ), 'names' );
 		$posts      = get_posts(
 			array(
-				'post_type'      => array_values( $post_types ),
-				'post_status'    => 'publish',
-				'posts_per_page' => $max,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
+				'post_type'              => array_values( $post_types ),
+				'post_status'            => 'publish',
+				'posts_per_page'         => $max,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
 			)
 		);
 
-		foreach ( $posts as $post ) {
-			$url = get_permalink( $post );
-			if ( $url && ! in_array( $url, $pages, true ) ) {
-				$pages[] = $url;
-				if ( count( $pages ) >= $max ) {
-					break;
-				}
-			}
-		}
+		$this->collect_post_urls( $posts, $pages, $seen, $max );
 
 		// Add category/tag archive pages if we still have room.
 		if ( count( $pages ) < $max ) {
@@ -321,8 +439,13 @@ class Controller {
 			if ( ! is_wp_error( $terms ) ) {
 				foreach ( $terms as $term ) {
 					$url = get_term_link( $term );
-					if ( ! is_wp_error( $url ) && ! in_array( $url, $pages, true ) ) {
-						$pages[] = $url;
+					if ( is_wp_error( $url ) ) {
+						continue;
+					}
+					$normalized = $this->normalize_url( $url );
+					if ( ! isset( $seen[ $normalized ] ) ) {
+						$seen[ $normalized ] = true;
+						$pages[]             = $normalized;
 						if ( count( $pages ) >= $max ) {
 							break;
 						}
@@ -359,7 +482,7 @@ class Controller {
 			if ( ! empty( $body ) ) {
 				// Suppress XML errors and parse.
 				$previous = libxml_use_internal_errors( true );
-				$xml      = simplexml_load_string( $body );
+				$xml      = simplexml_load_string( $body, 'SimpleXMLElement', LIBXML_NONET );
 				libxml_use_internal_errors( $previous );
 
 				if ( false !== $xml ) {
@@ -377,7 +500,7 @@ class Controller {
 								if ( ! is_wp_error( $sub_response ) && 200 === wp_remote_retrieve_response_code( $sub_response ) ) {
 									$sub_body = wp_remote_retrieve_body( $sub_response );
 									$previous = libxml_use_internal_errors( true );
-									$sub_xml  = simplexml_load_string( $sub_body );
+									$sub_xml  = simplexml_load_string( $sub_body, 'SimpleXMLElement', LIBXML_NONET );
 									libxml_use_internal_errors( $previous );
 									if ( false !== $sub_xml && isset( $sub_xml->url ) ) {
 										foreach ( $sub_xml->url as $url_entry ) {
@@ -657,36 +780,51 @@ class Controller {
 	 * @param array $cookies       Array of cookie data arrays.
 	 * @param int   $pages_scanned Number of pages scanned.
 	 * @param array $scripts       Array of detected script URLs (for inference).
+	 * @param array $metrics       Optional scan metrics from the client.
 	 * @return array Scan result summary.
 	 */
-	public function save_scan_result( $cookies, $pages_scanned, $scripts = array() ) {
-		// Merge inferred cookies from script patterns.
-		if ( ! empty( $scripts ) ) {
-			$inferred       = Cookie_Database::lookup_scripts( $scripts );
-			$existing_names = array();
-			foreach ( $cookies as $c ) {
-				$existing_names[] = $c['name'];
+	public function save_scan_result( $cookies, $pages_scanned, $scripts = array(), $metrics = array() ) {
+		// Deduplicate cookies by name (single pass, also used for merge check).
+		$unique = array();
+		$seen   = array();
+		foreach ( $cookies as $c ) {
+			if ( ! is_array( $c ) || empty( $c['name'] ) ) {
+				continue;
 			}
-			foreach ( $inferred as $inf ) {
-				if ( ! in_array( $inf['name'], $existing_names, true ) ) {
-					$cookies[]        = $inf;
-					$existing_names[] = $inf['name'];
-				}
+			$name = sanitize_text_field( $c['name'] );
+			if ( isset( $seen[ $name ] ) ) {
+				continue;
 			}
+			$seen[ $name ] = true;
+			$c['name']     = $name;
+			$unique[]      = $c;
 		}
 
-		// Deduplicate by name.
-		$unique  = array();
-		$seen    = array();
-		foreach ( $cookies as $c ) {
-			if ( ! isset( $seen[ $c['name'] ] ) ) {
-				$seen[ $c['name'] ] = true;
-				$unique[]           = $c;
+		// Merge inferred cookies from script patterns.
+		if ( ! empty( $scripts ) ) {
+			$inferred = Cookie_Database::lookup_scripts( $scripts );
+			foreach ( $inferred as $inf ) {
+				if ( ! is_array( $inf ) || empty( $inf['name'] ) ) {
+					continue;
+				}
+				$name = sanitize_text_field( $inf['name'] );
+				if ( isset( $seen[ $name ] ) ) {
+					continue;
+				}
+				$inf['name']  = $name;
+				$seen[ $name ] = true;
+				$unique[]      = $inf;
 			}
 		}
 
 		$total_cookies = count( $unique );
 		$this->save_cookies( $unique );
+		$cookie_names = array();
+		foreach ( $unique as $item ) {
+			if ( isset( $item['name'] ) && '' !== $item['name'] ) {
+				$cookie_names[] = sanitize_text_field( $item['name'] );
+			}
+		}
 
 		$scan_id = absint( get_option( 'faz_scan_counter', 0 ) ) + 1;
 		update_option( 'faz_scan_counter', $scan_id );
@@ -702,9 +840,11 @@ class Controller {
 			)
 		);
 
+		$clean_metrics = $this->sanitize_scan_metrics( $metrics );
+
 		// Store scan history entry.
-		$history   = get_option( 'faz_scan_history', array() );
-		$history[] = array(
+		$history       = get_option( 'faz_scan_history', array() );
+		$history_entry = array(
 			'id'            => $scan_id,
 			'status'        => 'completed',
 			'type'          => 'browser',
@@ -712,6 +852,10 @@ class Controller {
 			'total_cookies' => $total_cookies,
 			'pages_scanned' => $pages_scanned,
 		);
+		if ( ! empty( $clean_metrics ) ) {
+			$history_entry['metrics'] = $clean_metrics;
+		}
+		$history[] = $history_entry;
 		if ( count( $history ) > 50 ) {
 			$history = array_slice( $history, -50 );
 		}
@@ -721,6 +865,7 @@ class Controller {
 			'scan_id'       => $scan_id,
 			'total_cookies' => $total_cookies,
 			'pages_scanned' => $pages_scanned,
+			'cookie_names'  => array_values( array_unique( $cookie_names ) ),
 		);
 	}
 
@@ -738,12 +883,12 @@ class Controller {
 			$category_map[ $cat->slug ] = $cat->category_id;
 		}
 
-		// Get existing cookies to avoid duplicates.
+		// Get existing cookies to avoid duplicates (hash map for O(1) lookup).
 		$existing_cookies = Cookie_Controller::get_instance()->get_item_from_db();
 		$existing_names   = array();
 		if ( ! empty( $existing_cookies ) && is_array( $existing_cookies ) ) {
 			foreach ( $existing_cookies as $ec ) {
-				$existing_names[] = $ec->name;
+				$existing_names[ $ec->name ] = true;
 			}
 		}
 
@@ -755,12 +900,25 @@ class Controller {
 			: ( isset( $category_map['necessary'] ) ? $category_map['necessary'] : 1 );
 
 		foreach ( $cookies as $cookie_data ) {
-			if ( in_array( $cookie_data['name'], $existing_names, true ) ) {
+			if ( ! is_array( $cookie_data ) || empty( $cookie_data['name'] ) ) {
+				continue;
+			}
+			$cookie_data = wp_parse_args(
+				$cookie_data,
+				array(
+					'description' => '',
+					'duration'    => 'session',
+					'domain'      => '',
+					'category'    => '',
+				)
+			);
+			$name        = sanitize_text_field( $cookie_data['name'] );
+			if ( isset( $existing_names[ $name ] ) ) {
 				continue; // Don't overwrite existing cookies.
 			}
 
 			// Try known cookies database first (handles WP admin cookies, etc.).
-			$known = Cookie_Database::lookup( $cookie_data['name'] );
+			$known = Cookie_Database::lookup( $name );
 			if ( $known ) {
 				$cat_slug = $known['category'];
 				if ( ! empty( $known['description'] ) && empty( $cookie_data['description'] ) ) {
@@ -775,8 +933,8 @@ class Controller {
 			$category_id = isset( $category_map[ $cat_slug ] ) ? $category_map[ $cat_slug ] : $default_cat_id;
 
 			$cookie = new Cookie();
-			$cookie->set_name( sanitize_text_field( $cookie_data['name'] ) );
-			$cookie->set_slug( sanitize_title( $cookie_data['name'] ) );
+			$cookie->set_name( $name );
+			$cookie->set_slug( sanitize_title( $name ) );
 			$cookie->set_description( array( $default_lang => sanitize_text_field( $cookie_data['description'] ) ) );
 			$cookie->set_duration( array( $default_lang => sanitize_text_field( $cookie_data['duration'] ) ) );
 			$cookie->set_domain( sanitize_text_field( $cookie_data['domain'] ) );
@@ -785,7 +943,30 @@ class Controller {
 			$cookie->set_discovered( true );
 
 			Cookie_Controller::get_instance()->create_item( $cookie );
+			$existing_names[ $name ] = true;
 		}
+	}
+
+	/**
+	 * Sanitize client-side scan metrics for safe storage.
+	 *
+	 * @param array $metrics Raw metrics from the client.
+	 * @return array Sanitized metrics, or empty array if input is empty.
+	 */
+	private function sanitize_scan_metrics( $metrics ) {
+		if ( empty( $metrics ) || ! is_array( $metrics ) ) {
+			return array();
+		}
+
+		$int_keys = array( 'discoverMs', 'scanMs', 'importMs', 'urlsDiscovered', 'cookiesFound', 'scriptsFound', 'pagesScanned' );
+		$clean    = array();
+		foreach ( $int_keys as $key ) {
+			$clean[ $key ] = isset( $metrics[ $key ] ) ? absint( $metrics[ $key ] ) : 0;
+		}
+		$clean['earlyStopReason'] = isset( $metrics['earlyStopReason'] ) ? sanitize_text_field( $metrics['earlyStopReason'] ) : '';
+		$clean['incremental']     = ! empty( $metrics['incremental'] );
+
+		return $clean;
 	}
 
 	/**
@@ -838,6 +1019,104 @@ class Controller {
 
 		update_option( 'faz_scan_details', $sanitized );
 		$this->last_scan_info = null; // Reset cached info.
+	}
+
+	/**
+	 * Generate a fingerprint of the site's content state.
+	 *
+	 * Used for incremental scanning — if the fingerprint hasn't changed,
+	 * only priority URLs (home + recently modified) need re-scanning.
+	 *
+	 * @param int $max The max_pages parameter for context.
+	 * @return string MD5 fingerprint.
+	 */
+	public function get_scan_fingerprint( $max ) {
+		global $wpdb;
+
+		$post_types = get_post_types( array( 'public' => true ), 'names' );
+		if ( empty( $post_types ) ) {
+			return ''; // Unknown state — forces full scan.
+		}
+
+		$post_types_values = array_values( $post_types );
+		$placeholders      = implode( ',', array_fill( 0, count( $post_types_values ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- dynamic placeholder count
+				"SELECT COUNT(*) as cnt, MAX(post_modified_gmt) as latest FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ({$placeholders})",
+				$post_types_values
+			)
+		);
+
+		if ( null === $row || ! empty( $wpdb->last_error ) ) {
+			return ''; // DB error — forces full scan.
+		}
+
+		// Include taxonomy state so archive page changes also invalidate the fingerprint.
+		// Uses term slugs (not just counts) to detect renames/slug changes.
+		$tax_part = '';
+		$taxonomies = get_taxonomies( array( 'public' => true ), 'names' );
+		if ( ! empty( $taxonomies ) ) {
+			$tax_entries = array();
+			foreach ( $taxonomies as $tax ) {
+				$terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => true, 'fields' => 'slugs' ) );
+				if ( is_wp_error( $terms ) ) {
+					$terms = array();
+				}
+				sort( $terms );
+				$tax_entries[] = $tax . ':' . count( $terms ) . ':' . implode( '|', $terms );
+			}
+			sort( $tax_entries );
+			$tax_part = implode( ',', $tax_entries );
+		}
+
+		return md5( $row->cnt . '|' . $row->latest . '|' . $max . '|' . $tax_part );
+	}
+
+	/**
+	 * Get priority URLs for incremental scanning.
+	 *
+	 * Returns homepage + posts modified in the last 7 days.
+	 *
+	 * @param int $max Maximum URLs to return.
+	 * @return array List of URLs.
+	 */
+	public function get_priority_urls( $max ) {
+		$max = absint( $max );
+		if ( $max < 1 ) {
+			return array();
+		}
+
+		$home  = $this->normalize_url( home_url( '/' ) );
+		$pages = array( $home );
+		$seen  = array( $home => true );
+
+		$post_types = get_post_types( array( 'public' => true ), 'names' );
+		$recent     = get_posts(
+			array(
+				'post_type'              => array_values( $post_types ),
+				'post_status'            => 'publish',
+				'posts_per_page'         => max( 0, $max - 1 ),
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'date_query'             => array(
+					array(
+						'column' => 'post_modified_gmt',
+						'after'  => '7 days ago',
+					),
+				),
+			)
+		);
+
+		$this->collect_post_urls( $recent, $pages, $seen, $max );
+
+		return array_slice( $pages, 0, $max );
 	}
 
 	/**

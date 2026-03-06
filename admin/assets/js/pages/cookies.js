@@ -8,6 +8,8 @@
 	var cookies = [];
 	var activeCat = 'all';   // category ID or 'all'
 	var activeCatName = '';  // display name for heading
+	var staleCookieNames = {};
+	var staleCookieCount = 0;
 
 	// Extract display string from a value that might be a multilingual object.
 	function textVal(val) {
@@ -100,16 +102,98 @@
 		}).catch(function (err) { console.error('FAZ: Failed to load categories', err); });
 	}
 
-	function loadCookies() {
+	function loadCookies(done) {
 		var params = {};
 		if (activeCat !== 'all') params.category = activeCat;
 		FAZ.get('cookies', params).then(function (data) {
 			cookies = Array.isArray(data) ? data : (data.items || []);
 			renderCookies();
+			if (typeof done === 'function') done();
 		}).catch(function () {
 			cookies = [];
 			renderCookies();
+			if (typeof done === 'function') done();
 		});
+	}
+
+	function getCookieId(cookie) {
+		return cookie.id || cookie.cookie_id;
+	}
+
+	function isDiscoveredCookie(cookie) {
+		return !!(cookie && (cookie.discovered === true || cookie.discovered === 1 || cookie.discovered === '1'));
+	}
+
+	function normalizeDomain(raw) {
+		if (!raw) return '';
+		return String(raw).trim().toLowerCase().replace(/^\.+/, '').replace(/:\d+$/, '');
+	}
+
+	function getStaleKey(cookie) {
+		var name = (cookie && cookie.name) ? String(cookie.name).trim().toLowerCase() : '';
+		if (!name) return '';
+		return name + '|' + normalizeDomain(cookie.domain);
+	}
+
+	function getStaleKeyFromName(name, domain) {
+		var normalizedName = name ? String(name).trim().toLowerCase() : '';
+		if (!normalizedName) return '';
+		return normalizedName + '|' + normalizeDomain(domain);
+	}
+
+	function buildCookieNameSet(list, discoveredOnly) {
+		var set = {};
+		(list || []).forEach(function (cookie) {
+			var key = getStaleKey(cookie);
+			if (!key) return;
+			if (discoveredOnly && !isDiscoveredCookie(cookie)) return;
+			set[key] = true;
+		});
+		return set;
+	}
+
+	function setStaleCookies(previousSet, currentSet) {
+		staleCookieNames = {};
+		staleCookieCount = 0;
+		Object.keys(previousSet || {}).forEach(function (key) {
+			if (!currentSet || !currentSet[key]) {
+				staleCookieNames[key] = true;
+				staleCookieCount++;
+			}
+		});
+	}
+
+	function snapshotDiscoveredCookies() {
+		return FAZ.get('cookies').then(function (data) {
+			var list = Array.isArray(data) ? data : (data.items || []);
+			return buildCookieNameSet(list, true);
+		}).catch(function () {
+			return {};
+		});
+	}
+
+	function updateStaleBar(visibleStaleCount) {
+		var staleBar = document.getElementById('faz-stale-bar');
+		if (!staleBar) return;
+		if (staleCookieCount <= 0) {
+			staleBar.style.display = 'none';
+			staleBar.textContent = '';
+			return;
+		}
+		staleBar.style.display = '';
+		staleBar.textContent = '';
+		var msg = document.createElement('span');
+		msg.textContent = visibleStaleCount > 0
+			? visibleStaleCount + ' cookie(s) not found in the latest scan are highlighted in red.'
+			: staleCookieCount + ' cookie(s) not found in the latest scan (not visible in this filter).';
+		staleBar.appendChild(msg);
+
+		var deleteAllBtn = document.createElement('button');
+		deleteAllBtn.type = 'button';
+		deleteAllBtn.className = 'faz-btn faz-btn-sm faz-stale-delete-all';
+		deleteAllBtn.textContent = 'Delete all stale';
+		deleteAllBtn.addEventListener('click', deleteAllStaleCookies);
+		staleBar.appendChild(deleteAllBtn);
 	}
 
 	function renderCategories() {
@@ -178,6 +262,7 @@
 	function renderCookies() {
 		var tbody = document.getElementById('faz-cookies-tbody');
 		tbody.textContent = '';
+		var visibleStaleCount = 0;
 
 		// Reset select-all and bulk bar on re-render.
 		var selectAll = document.getElementById('faz-select-all-cookies');
@@ -194,17 +279,24 @@
 			td.appendChild(p);
 			tr.appendChild(td);
 			tbody.appendChild(tr);
+			updateStaleBar(0);
 			return;
 		}
 
 		cookies.forEach(function (cookie) {
 			var tr = document.createElement('tr');
+			var staleKey = getStaleKey(cookie);
+			var isStale = !!(staleKey && staleCookieNames[staleKey]);
+			if (isStale) {
+				tr.classList.add('faz-cookie-stale');
+				visibleStaleCount++;
+			}
 
 			var tdCheck = document.createElement('td');
 			var cb = document.createElement('input');
 			cb.type = 'checkbox';
 			cb.className = 'faz-cookie-check';
-			cb.value = cookie.id || cookie.cookie_id;
+			cb.value = getCookieId(cookie);
 			cb.setAttribute('aria-label', 'Select cookie ' + (cookie.name || ''));
 			cb.addEventListener('change', updateBulkBar);
 			tdCheck.appendChild(cb);
@@ -249,9 +341,23 @@
 			delBtn.addEventListener('click', function () { deleteCookie(cookie); });
 			tdActions.appendChild(delBtn);
 
+			if (isStale) {
+				var staleBtn = document.createElement('button');
+				staleBtn.className = 'faz-btn faz-btn-sm';
+				staleBtn.textContent = 'Delete stale';
+				staleBtn.style.background = '#fee2e2';
+				staleBtn.style.color = '#991b1b';
+				staleBtn.style.border = '1px solid #fecaca';
+				staleBtn.addEventListener('click', function () {
+					deleteStaleCookieQuick(cookie);
+				});
+				tdActions.appendChild(staleBtn);
+			}
+
 			tr.appendChild(tdActions);
 			tbody.appendChild(tr);
 		});
+		updateStaleBar(visibleStaleCount);
 	}
 
 	function updateBulkBar() {
@@ -383,7 +489,7 @@
 	function deleteCookie(cookie) {
 		FAZ.confirm('Delete cookie "' + (cookie.name || '') + '"?').then(function (ok) {
 			if (!ok) return;
-			FAZ.del('cookies/' + (cookie.id || cookie.cookie_id)).then(function () {
+			FAZ.del('cookies/' + getCookieId(cookie)).then(function () {
 				FAZ.notify('Cookie deleted');
 				loadCookies();
 				loadCategories();
@@ -393,12 +499,147 @@
 		});
 	}
 
+	function deleteStaleCookieQuick(cookie) {
+		FAZ.del('cookies/' + getCookieId(cookie)).then(function () {
+			var staleKey = getStaleKey(cookie);
+			if (staleKey && staleCookieNames[staleKey]) {
+				delete staleCookieNames[staleKey];
+				staleCookieCount = Math.max(0, staleCookieCount - 1);
+			}
+			FAZ.notify('Stale cookie deleted');
+			loadCookies();
+			loadCategories();
+		}).catch(function () {
+			FAZ.notify('Failed to delete stale cookie', 'error');
+		});
+	}
+
+	function deleteAllStaleCookies() {
+		if (!staleCookieCount) return;
+		FAZ.confirm('Delete all stale cookies not found in the latest scan?').then(function (ok) {
+			if (!ok) return;
+			FAZ.get('cookies').then(function (data) {
+				var list = Array.isArray(data) ? data : (data.items || []);
+				var ids = [];
+				list.forEach(function (cookie) {
+					var staleKey = getStaleKey(cookie);
+					var id = getCookieId(cookie);
+					if (staleKey && staleCookieNames[staleKey] && id) {
+						ids.push(parseInt(id, 10));
+					}
+				});
+				if (!ids.length) {
+					FAZ.notify('No stale cookies to delete');
+					return;
+				}
+				FAZ.post('cookies/bulk-delete', { ids: ids }).then(function (res) {
+					var deletedCount = (res && typeof res.deleted === 'number') ? res.deleted : ids.length;
+					staleCookieNames = {};
+					staleCookieCount = 0;
+					FAZ.notify(deletedCount + ' stale cookie(s) deleted');
+					loadCookies();
+					loadCategories();
+				}).catch(function () {
+					FAZ.notify('Failed to delete stale cookies', 'error');
+				});
+			}).catch(function () {
+				FAZ.notify('Failed to load cookies for stale cleanup', 'error');
+			});
+		});
+	}
+
 	// ── Browser-Based Cookie Scanner ───────────────────────
 	// Loads pages in hidden iframes to discover cookies set by JavaScript
 	// (e.g. _ga, _fbp) that server-side scanning cannot detect.
 
-	var IFRAME_LOAD_TIMEOUT = 8000; // Max wait for iframe load (ms).
-	var IFRAME_SETTLE_DELAY = 2000; // Wait after load for JS cookies to be set.
+	var IFRAME_LOAD_TIMEOUT = 6000;  // Max wait for iframe load (ms). Must exceed adaptive settle (700+800=1500ms).
+	var CONCURRENCY = 3;             // Parallel iframes.
+	var EARLY_STOP_THRESHOLD = 5;    // Stop after N consecutive pages with no new findings.
+	var SAFE_SCAN_THRESHOLD = 1000;  // Deep/full scans use safer timings and disable early stop.
+
+	/**
+	 * Normalize a URL: strip hash, preserve query, ensure trailing slash.
+	 * Query params are kept by appending `u.search` to the normalized URL.
+	 */
+	function normalizeUrl(url) {
+		try {
+			var u = new URL(url, window.location.origin);
+			return u.origin + u.pathname.replace(/\/?$/, '/') + u.search;
+		} catch (_unused) {
+			return url;
+		}
+	}
+
+	/**
+	 * Deduplicate and normalize an array of URLs.
+	 */
+	function deduplicateUrls(urls) {
+		var seen = {};
+		var result = [];
+		for (var i = 0; i < urls.length; i++) {
+			var n = normalizeUrl(urls[i]);
+			if (!seen[n]) {
+				seen[n] = true;
+				result.push(n);
+			}
+		}
+		return result;
+	}
+
+	function getApiErrorStatus(err) {
+		if (!err) return 0;
+		if (typeof err.status === 'number') return err.status;
+		if (err.data && typeof err.data.status === 'number') return err.data.status;
+		return 0;
+	}
+
+	function buildScanApiErrorDetail(err) {
+		var status = getApiErrorStatus(err);
+		var parts = [];
+		if (status === 401) {
+			parts.push('Session expired. Refresh the page and try again.');
+		} else if (status === 403) {
+			parts.push('Nonce/permissions error. Refresh the page and verify admin access.');
+		} else if (status === 409) {
+			parts.push('Another scan is already in progress.');
+		} else if (status === 413) {
+			parts.push('Request too large. Reduce scan depth and retry.');
+		} else if (status === 429) {
+			parts.push('Too many requests. Wait a moment and retry.');
+		} else if (status >= 500) {
+			parts.push('Server error. Check PHP/web server logs.');
+		} else if (status === 0) {
+			parts.push('Network/CORS/proxy issue while calling REST API.');
+		}
+		if (err && err.code) {
+			parts.push('Code: ' + err.code + '.');
+		}
+		if (err && err.message) {
+			parts.push(err.message);
+		}
+		return parts.length ? ' ' + parts.join(' ') : '';
+	}
+
+	function buildScanDiagnosticsHint(diagnostics, foundItems) {
+		if (!diagnostics || foundItems > 0) return '';
+		var hints = [];
+		if (diagnostics.crossOrigin > 0) {
+			hints.push('URL origin/protocol mismatch between admin and scanned pages');
+		}
+		if (diagnostics.iframeInaccessible > 0) {
+			hints.push('iframe access blocked (X-Frame-Options/CSP or cross-origin redirect)');
+		}
+		if (diagnostics.iframeTimeout > 0 || diagnostics.settleTimeout > 0) {
+			hints.push('pages too slow or blocked during iframe load');
+		}
+		if (diagnostics.missingContainer > 0) {
+			hints.push('scanner iframe container missing in page markup');
+		}
+		if (diagnostics.invalidUrl > 0) {
+			hints.push('invalid URLs discovered');
+		}
+		return hints.length ? ' Possible blockers: ' + hints.join('; ') + '.' : '';
+	}
 
 	function startScan(maxPages) {
 		var btn = document.getElementById('faz-scan-btn');
@@ -407,6 +648,8 @@
 		btn.textContent = 'Scanning...';
 
 		// Build progress UI.
+		var progressWrap = document.createElement('div');
+		progressWrap.className = 'faz-scan-progress-wrap';
 		var progress = document.createElement('div');
 		progress.className = 'faz-scan-progress';
 		var bar = document.createElement('div');
@@ -414,44 +657,175 @@
 		var statusEl = document.createElement('span');
 		statusEl.className = 'faz-scan-status';
 		statusEl.textContent = 'Discovering pages...';
+		var pagesEl = document.createElement('div');
+		pagesEl.className = 'faz-scan-pages';
+		pagesEl.textContent = '0/0 pages';
 		progress.appendChild(bar);
 		progress.appendChild(statusEl);
-		dropdown.parentNode.insertBefore(progress, dropdown.nextSibling);
+		progressWrap.appendChild(progress);
+		progressWrap.appendChild(pagesEl);
+		var card = dropdown.closest ? dropdown.closest('.faz-card') : null;
+		var cardHeader = card ? card.querySelector('.faz-card-header') : null;
+		if (card && cardHeader && cardHeader.parentNode) {
+			cardHeader.parentNode.insertBefore(progressWrap, cardHeader.nextSibling);
+		} else {
+			dropdown.parentNode.insertBefore(progressWrap, dropdown.nextSibling);
+		}
 
-		var requestPages = maxPages > 0 ? maxPages : 99999;
+		var parsedMaxPages = parseInt(maxPages, 10);
+		var requestPages = 20;
+		var isFullScan = false;
+		if (isFinite(parsedMaxPages) && parsedMaxPages > 0) {
+			requestPages = parsedMaxPages;
+		} else if (parsedMaxPages === 0) {
+			// "Full scan" option in the UI: request maximum server cap.
+			requestPages = 2000;
+			isFullScan = true;
+		}
+		var safeMode = isFullScan || requestPages >= SAFE_SCAN_THRESHOLD;
+		var scanOptions = {
+			enableEarlyStop: !safeMode,
+			loadTimeoutMs: safeMode ? 10000 : IFRAME_LOAD_TIMEOUT,
+			settleTimeoutMs: safeMode ? 2600 : 1700,
+		};
 
-		// Step 1: Ask server for URLs to scan.
-		FAZ.post('scans/discover', { max_pages: requestPages }).then(function (result) {
-			var urls = result.urls || [];
-			if (!urls.length) {
-				finishScan(btn, progress, 'No pages found to scan.', true);
-				return;
-			}
-			statusEl.textContent = 'Scanning 0/' + urls.length + ' pages...';
-			bar.style.width = '0%';
+		// Metrics.
+		var scanMetrics = {
+			discoverMs: 0, scanMs: 0, importMs: 0,
+			pageTimes: [], urlsDiscovered: 0,
+			cookiesFound: 0, scriptsFound: 0,
+			earlyStopReason: null, pagesScanned: 0,
+			incremental: false,
+		};
+		var discoverStart = Date.now();
 
-			// Step 2: Scan each URL sequentially via iframe.
-			scanUrls(urls, 0, [], [], function (collectedCookies, collectedScripts) {
-				bar.style.width = '100%';
-				statusEl.textContent = 'Saving results...';
+		// Get stored fingerprint for optional incremental scanning.
+		var storedFingerprint = '';
+		try {
+			storedFingerprint = localStorage.getItem('faz_scan_fingerprint') || '';
+		} catch (e) {
+			console.warn('[FAZ Scanner] Cannot read fingerprint from localStorage — incremental scanning disabled.', e.message);
+		}
+		var allowIncremental = !safeMode && !!storedFingerprint;
 
-				// Step 3: Send results to server (include URLs for httpOnly header check).
-				FAZ.post('scans/import', {
-					cookies: collectedCookies,
-					pages_scanned: urls.length,
-					scripts: collectedScripts,
-					urls: urls,
-				}).then(function (res) {
-					var total = res.total_cookies || collectedCookies.length;
-					finishScan(btn, progress, 'Scan complete \u2014 ' + total + ' cookies found on ' + urls.length + ' pages');
-					loadCookies();
-					loadCategories();
-				}).catch(function () {
-					finishScan(btn, progress, 'Scan finished but failed to save results.', true);
+		snapshotDiscoveredCookies().then(function (previousDiscoveredSet) {
+			// Step 1: Ask server for URLs to scan (with retry for transient failures).
+			var discoverPayload = {
+				max_pages: requestPages,
+				fingerprint: (!safeMode && allowIncremental) ? storedFingerprint : '',
+			};
+			function discoverWithRetry(attempt) {
+				return FAZ.post('scans/discover', discoverPayload).catch(function (err) {
+					if (attempt < 2 && err && err.code === 'fetch_error') {
+						var delay = attempt === 0 ? 1000 : 3000;
+						statusEl.textContent = 'Server busy, retrying in ' + (delay / 1000) + 's...';
+						console.warn('[FAZ Scanner] Discover attempt ' + (attempt + 1) + ' failed, retrying...', err.message);
+						return new Promise(function (resolve) { setTimeout(resolve, delay); })
+							.then(function () { return discoverWithRetry(attempt + 1); });
+					}
+					throw err;
 				});
-			}, bar, statusEl);
-		}).catch(function () {
-			finishScan(btn, progress, 'Failed to discover pages.', true);
+			}
+			discoverWithRetry(0).then(function (result) {
+				scanMetrics.discoverMs = Date.now() - discoverStart;
+				scanMetrics.incremental = !!(allowIncremental && result.incremental);
+				var urls = deduplicateUrls(result.urls || []);
+
+				scanMetrics.urlsDiscovered = urls.length;
+
+				if (!urls.length) {
+					finishScan(btn, progressWrap, 'No pages found to scan.', true);
+					return;
+				}
+				statusEl.textContent = 'Scanning 0/' + urls.length + ' pages...';
+				pagesEl.textContent = '0/' + urls.length + ' pages';
+				bar.style.width = '0%';
+
+				var scanStart = Date.now();
+
+				// Step 2: Scan URLs concurrently.
+				scanUrlsConcurrent(urls, function (collectedCookies, collectedScripts, diagnostics) {
+					scanMetrics.scanMs = Date.now() - scanStart;
+					scanMetrics.cookiesFound = collectedCookies.length;
+					scanMetrics.scriptsFound = collectedScripts.length;
+					bar.style.width = '100%';
+					statusEl.textContent = 'Saving results...';
+
+					var importStart = Date.now();
+
+					// Step 3: Send results to server (strip pageTimes to avoid bloating payload).
+					var metricsToSend = {
+						discoverMs: scanMetrics.discoverMs,
+						scanMs: scanMetrics.scanMs,
+						urlsDiscovered: scanMetrics.urlsDiscovered,
+						cookiesFound: scanMetrics.cookiesFound,
+						scriptsFound: scanMetrics.scriptsFound,
+						earlyStopReason: scanMetrics.earlyStopReason,
+						pagesScanned: scanMetrics.pagesScanned,
+						incremental: scanMetrics.incremental,
+					};
+						FAZ.post('scans/import', {
+							cookies: collectedCookies,
+							pages_scanned: scanMetrics.pagesScanned,
+							scripts: collectedScripts,
+							metrics: metricsToSend,
+						}).then(function (res) {
+							scanMetrics.importMs = Date.now() - importStart;
+							// Persist fingerprint only after successful import.
+							try {
+								if (result.fingerprint) localStorage.setItem('faz_scan_fingerprint', result.fingerprint);
+							} catch (e) {
+								console.warn('[FAZ Scanner] Cannot persist fingerprint — next scan will be full.', e.message);
+							}
+							var total = res.total_cookies || collectedCookies.length;
+							var currentDetectedSet = buildCookieNameSet(collectedCookies, false);
+							if (res && Array.isArray(res.cookie_names) && res.cookie_names.length) {
+								res.cookie_names.forEach(function (name) {
+									var prefix = name ? String(name).trim().toLowerCase() + '|' : '';
+									if (!prefix) return;
+									// Server-inferred names lack domain; match any previously-known key by name prefix.
+									Object.keys(previousDiscoveredSet).forEach(function (key) {
+										if (key.indexOf(prefix) === 0) {
+											currentDetectedSet[key] = true;
+										}
+									});
+								});
+							}
+							if (scanMetrics.incremental) {
+								// Incremental scan covers only a subset; avoid false stale flags.
+								staleCookieNames = {};
+								staleCookieCount = 0;
+							} else {
+								setStaleCookies(previousDiscoveredSet, currentDetectedSet);
+							}
+
+						var msg = 'Scan complete \u2014 ' + total + ' cookies found on ' + scanMetrics.pagesScanned + ' pages';
+						if (scanMetrics.earlyStopReason) {
+							msg += ' (early stop: ' + scanMetrics.earlyStopReason + ')';
+						}
+						if (staleCookieCount > 0) {
+							msg += ' | ' + staleCookieCount + ' stale cookie(s) highlighted';
+						}
+						msg += buildScanDiagnosticsHint(diagnostics, total);
+						console.log('[FAZ Scanner] Metrics:', scanMetrics);
+						if (diagnostics && diagnostics.totalIssues > 0) {
+							console.warn('[FAZ Scanner] Diagnostics:', diagnostics);
+						}
+						finishScan(btn, progressWrap, msg);
+						loadCookies(function () {
+							loadCategories();
+						});
+					}).catch(function (err) {
+						console.error('[FAZ Scanner] Import failed:', err);
+						var detail = buildScanApiErrorDetail(err);
+						finishScan(btn, progressWrap, 'Scan finished but failed to save results.' + detail, true);
+					});
+				}, bar, statusEl, pagesEl, scanMetrics, scanOptions);
+			}).catch(function (err) {
+				console.error('[FAZ Scanner] Discover failed:', err);
+				var detail = buildScanApiErrorDetail(err);
+				finishScan(btn, progressWrap, 'Failed to discover pages.' + detail, true);
+			});
 		});
 	}
 
@@ -463,169 +837,305 @@
 	}
 
 	/**
-	 * Sequentially scan URLs via hidden iframes.
+	 * Scan URLs concurrently with a pool of iframes.
 	 *
-	 * @param {string[]} urls           URLs to scan.
-	 * @param {number}   index          Current index.
-	 * @param {Array}    collectedCookies Accumulated cookie objects.
-	 * @param {Array}    collectedScripts Accumulated script URLs.
-	 * @param {Function} done           Callback(cookies, scripts) when all done.
-	 * @param {Element}  bar            Progress bar element.
-	 * @param {Element}  statusEl       Status text element.
+	 * @param {string[]}  urls        URLs to scan.
+	 * @param {Function}  done        Callback(cookies, scripts) when all done.
+	 * @param {Element}   bar         Progress bar element.
+	 * @param {Element}   statusEl    Status text element.
+	 * @param {Element}   pagesEl     Pages counter element.
+	 * @param {object}    metrics     Metrics object to populate.
 	 */
-	function scanUrls(urls, index, collectedCookies, collectedScripts, done, bar, statusEl) {
-		if (index >= urls.length) {
-			done(collectedCookies, collectedScripts);
-			return;
+	function scanUrlsConcurrent(urls, done, bar, statusEl, pagesEl, metrics, options) {
+		options = options || {};
+		var enableEarlyStop = options.enableEarlyStop !== false;
+		var loadTimeoutMs = (typeof options.loadTimeoutMs === 'number' && options.loadTimeoutMs > 0) ? options.loadTimeoutMs : IFRAME_LOAD_TIMEOUT;
+		var settleTimeoutMs = (typeof options.settleTimeoutMs === 'number' && options.settleTimeoutMs > 0) ? options.settleTimeoutMs : 1700;
+		var collectedCookies = [];
+		var collectedScripts = [];
+		var diagnostics = {
+			invalidUrl: 0,
+			crossOrigin: 0,
+			missingContainer: 0,
+			iframeInaccessible: 0,
+			iframeTimeout: 0,
+			settleTimeout: 0,
+			totalIssues: 0,
+		};
+		var cookieSet = {};    // O(1) dedup for cookie names.
+		var scriptSet = {};    // O(1) dedup for script URLs.
+		var nextIndex = 0;     // Next URL to dispatch.
+		var completed = 0;     // URLs finished.
+		var active = 0;        // Currently scanning.
+		var stopped = false;   // Early stop flag.
+		var noNewCount = 0;    // Consecutive pages with no new findings.
+		var total = urls.length;
+		var totalPageTime = 0; // Running sum for ETA calculation.
+
+		/**
+		 * Add an item to an array if not already in the dedup set.
+		 * Returns true if the item was new.
+		 */
+		function addUnique(set, arr, key, item) {
+			if (set[key]) return false;
+			set[key] = true;
+			arr.push(item);
+			return true;
 		}
 
-		var pct = Math.round(((index) / urls.length) * 100);
-		bar.style.width = pct + '%';
-		statusEl.textContent = 'Scanning ' + (index + 1) + '/' + urls.length + ' pages...';
-
-		// Snapshot cookies before loading page.
-		var cookiesBefore = parseBrowserCookies();
-
-		scanSingleUrl(urls[index], function (pageResult) {
-			// Diff cookies: find new ones set during this page load.
-			var cookiesAfter = parseBrowserCookies();
-			var newCookies = diffCookies(cookiesBefore, cookiesAfter);
-
-			// Add page-detected cookies (from iframe document.cookie).
-			if (pageResult.cookies) {
-				pageResult.cookies.forEach(function (c) {
-					if (!hasCookie(collectedCookies, c.name)) {
-						collectedCookies.push(c);
-					}
-				});
-			}
-			// Add new cookies detected via browser diff.
-			newCookies.forEach(function (c) {
-				if (!hasCookie(collectedCookies, c.name)) {
-					collectedCookies.push(c);
+		function updateProgress() {
+			var pct = Math.round((completed / total) * 100);
+			bar.style.width = pct + '%';
+			if (pagesEl) pagesEl.textContent = completed + '/' + total + ' pages';
+			var eta = '';
+			if (completed > 0) {
+				var etaMs = Math.round(((total - completed) * totalPageTime / completed) / CONCURRENCY);
+				if (etaMs > 1000) {
+					eta = ' (~' + Math.ceil(etaMs / 1000) + 's left)';
 				}
-			});
-			// Collect scripts.
-			if (pageResult.scripts) {
-				pageResult.scripts.forEach(function (src) {
-					if (collectedScripts.indexOf(src) === -1) {
-						collectedScripts.push(src);
-					}
-				});
 			}
+			statusEl.textContent = completed + '/' + total + ' pages | ' +
+				collectedCookies.length + ' cookies | ' + collectedScripts.length + ' scripts' + eta;
+		}
 
-			// Next URL.
-			scanUrls(urls, index + 1, collectedCookies, collectedScripts, done, bar, statusEl);
-		});
+		function dispatch() {
+			while (active < CONCURRENCY && nextIndex < total && !stopped) {
+				var idx = nextIndex;
+				nextIndex++;
+				active++;
+				scanOne(idx);
+			}
+			if (active === 0 && (nextIndex >= total || stopped)) {
+				metrics.pagesScanned = completed;
+				// Clean up any orphaned iframes.
+				try { document.getElementById('faz-scan-frame').textContent = ''; } catch (e) {}
+				done(collectedCookies, collectedScripts, diagnostics);
+			}
+		}
+
+		function scanOne(idx) {
+			var cookiesBefore = parseBrowserCookies();
+			var pageStart = Date.now();
+
+			scanSingleUrl(urls[idx], function (pageResult) {
+				active--;
+				completed++;
+				var elapsed = Date.now() - pageStart;
+				metrics.pageTimes.push(elapsed);
+				totalPageTime += elapsed;
+
+				var foundNew = false;
+				var issue = pageResult.issue || '';
+				if (issue && Object.prototype.hasOwnProperty.call(diagnostics, issue)) {
+					diagnostics[issue]++;
+					diagnostics.totalIssues++;
+				}
+
+				// Add page-detected cookies.
+				var pageCookies = pageResult.cookies || [];
+				for (var i = 0; i < pageCookies.length; i++) {
+					if (addUnique(cookieSet, collectedCookies, pageCookies[i].name, pageCookies[i])) {
+						foundNew = true;
+					}
+				}
+
+				// Diff cookies: find new ones set during this page load.
+				var newCookies = diffCookies(cookiesBefore, parseBrowserCookies());
+				for (var j = 0; j < newCookies.length; j++) {
+					if (addUnique(cookieSet, collectedCookies, newCookies[j].name, newCookies[j])) {
+						foundNew = true;
+					}
+				}
+
+				// Collect scripts.
+				var pageScripts = pageResult.scripts || [];
+				for (var k = 0; k < pageScripts.length; k++) {
+					if (addUnique(scriptSet, collectedScripts, pageScripts[k], pageScripts[k])) {
+						foundNew = true;
+					}
+				}
+
+				// Early stop check.
+				noNewCount = foundNew ? 0 : noNewCount + 1;
+				if (enableEarlyStop && noNewCount >= EARLY_STOP_THRESHOLD && completed >= EARLY_STOP_THRESHOLD) {
+					stopped = true;
+					metrics.earlyStopReason = noNewCount + ' consecutive pages with no new findings';
+				}
+
+				updateProgress();
+				dispatch();
+			}, {
+				loadTimeoutMs: loadTimeoutMs,
+				settleTimeoutMs: settleTimeoutMs,
+			});
+		}
+
+		dispatch();
 	}
 
 	/**
-	 * Load a single URL in a hidden iframe, read cookies and scripts.
+	 * Load a single URL in a hidden iframe with adaptive timeout.
 	 *
 	 * @param {string}   url  The URL to scan.
 	 * @param {Function} done Callback({cookies, scripts}).
 	 */
-	function scanSingleUrl(url, done) {
+	function scanSingleUrl(url, done, options) {
+		options = options || {};
+		var loadTimeoutMs = (typeof options.loadTimeoutMs === 'number' && options.loadTimeoutMs > 0) ? options.loadTimeoutMs : IFRAME_LOAD_TIMEOUT;
+		var settleTimeoutMs = (typeof options.settleTimeoutMs === 'number' && options.settleTimeoutMs > 0) ? options.settleTimeoutMs : 1700;
+
+		function emptyResult(issue) {
+			return { cookies: [], scripts: [], issue: issue || '' };
+		}
+		var hadAccessError = false;
+
 		// Validate URL: only allow http/https same-origin pages.
 		var parsedUrl;
 		try {
 			parsedUrl = new URL(url, window.location.origin);
 		} catch (_unused) {
-			done({ cookies: [], scripts: [] });
-			return;
-		}
-		if (
-			(parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') ||
-			parsedUrl.origin !== window.location.origin
-		) {
-			done({ cookies: [], scripts: [] });
+			done(emptyResult('invalidUrl'));
 			return;
 		}
 
 		var container = document.getElementById('faz-scan-frame');
-		if (!container) {
-			done({ cookies: [], scripts: [] });
+		var currentUrl;
+		try {
+			currentUrl = new URL(window.location.href);
+		} catch (_unused2) {
+			currentUrl = window.location;
+		}
+
+		function normalizedHostPort(u) {
+			var hostname = String(u.hostname || '').toLowerCase().replace(/^www\./, '');
+			var port = u.port;
+			if (!port) {
+				port = (u.protocol === 'https:') ? '443' : '80';
+			}
+			return hostname + ':' + port;
+		}
+
+		var isHttpProtocol = (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:');
+		var isSameOriginHttp = isHttpProtocol &&
+			parsedUrl.protocol === currentUrl.protocol &&
+			normalizedHostPort(parsedUrl) === normalizedHostPort(currentUrl);
+
+		if (!isSameOriginHttp) {
+			done(emptyResult('crossOrigin'));
 			return;
 		}
-		container.textContent = ''; // Remove previous iframe.
+		if (!container) {
+			done(emptyResult('missingContainer'));
+			return;
+		}
 
 		var iframe = document.createElement('iframe');
-		iframe.style.cssText = 'width:1px;height:1px;border:none;';
+		iframe.style.cssText = 'width:1px;height:1px;border:none;position:absolute;left:-9999px;';
 		iframe.sandbox = 'allow-same-origin allow-scripts';
 		iframe.src = 'about:blank';
 		container.appendChild(iframe);
 
 		var finished = false;
 		var timer = null;
+		var lastRead = null;
 
-		function finish() {
-			if (finished) return;
-			finished = true;
-			if (timer) clearTimeout(timer);
-
-			var result = { cookies: [], scripts: [] };
-
+		function readIframe() {
+			var result = { cookies: [], scripts: [], issue: '' };
 			try {
 				var doc = iframe.contentDocument || iframe.contentWindow.document;
 
-				// Read document.cookie from the iframe.
 				var iframeCookieStr = '';
-				try { iframeCookieStr = doc.cookie || ''; } catch (e) { /* cross-origin */ }
+				try { iframeCookieStr = doc.cookie || ''; } catch (e) { hadAccessError = true; }
 				if (iframeCookieStr) {
-					var domain = location.hostname;
-					var parsed = parseCookieString(iframeCookieStr, domain);
-					result.cookies = parsed;
+					result.cookies = parseCookieString(iframeCookieStr, parsedUrl.hostname);
 				}
 
-				// Collect <script src> URLs.
 				try {
 					var scriptEls = doc.querySelectorAll('script[src]');
 					scriptEls.forEach(function (s) {
 						var src = s.getAttribute('src') || '';
-						if (src && result.scripts.indexOf(src) === -1) {
+						if (src) {
+							try { src = new URL(src, parsedUrl.href).href; } catch (_u) {}
 							result.scripts.push(src);
 						}
 					});
-				} catch (e) { /* cross-origin */ }
+				} catch (e) { hadAccessError = true; }
 
-				// Collect <iframe src> URLs (embedded content like YouTube).
 				try {
 					var iframeEls = doc.querySelectorAll('iframe[src]');
 					iframeEls.forEach(function (f) {
 						var src = f.getAttribute('src') || '';
-						if (src && result.scripts.indexOf(src) === -1) {
+						if (src) {
+							try { src = new URL(src, parsedUrl.href).href; } catch (_u) {}
 							result.scripts.push(src);
 						}
 					});
-				} catch (e) { /* cross-origin */ }
-			} catch (e) {
-				// Couldn't access iframe content - cross-origin or error.
+				} catch (e) { hadAccessError = true; }
+			} catch (e) { hadAccessError = true; }
+			if (hadAccessError && !result.cookies.length && !result.scripts.length) {
+				result.issue = 'iframeInaccessible';
 			}
-
-			// Clean up iframe.
-			try { container.removeChild(iframe); } catch (e) {}
-
-			done(result);
+			return result;
 		}
 
-		// On load: wait for JS cookies to settle, then read.
+		function finish(result) {
+			if (finished) return;
+			finished = true;
+			if (timer) clearTimeout(timer);
+			try { container.removeChild(iframe); } catch (e) {}
+			var finalResult = result || readIframe();
+			done(finalResult);
+		}
+
+		// Adaptive settle: read immediately, wait 700ms, recheck.
+		// If stable, finish early. Otherwise wait 800ms more.
 		iframe.addEventListener('load', function () {
-			setTimeout(finish, IFRAME_SETTLE_DELAY);
+			// Cancel the pre-load fallback timer — page loaded, settle phase starts.
+			if (timer) { clearTimeout(timer); timer = null; }
+			// Settle watchdog for slow pages/scripts.
+			timer = setTimeout(function () {
+				// Use last successful read instead of discarding results.
+				if (lastRead) {
+					lastRead.issue = lastRead.issue || 'settleTimeout';
+					finish(lastRead);
+				} else {
+					finish(emptyResult('settleTimeout'));
+				}
+			}, settleTimeoutMs);
+
+			var firstRead = readIframe();
+			lastRead = firstRead;
+			var firstCount = firstRead.cookies.length + firstRead.scripts.length;
+
+			setTimeout(function () {
+				if (finished) return;
+				var secondRead = readIframe();
+				lastRead = secondRead;
+				var secondCount = secondRead.cookies.length + secondRead.scripts.length;
+
+				if (secondCount === firstCount) {
+					// Stable — finish early.
+					finish(secondRead);
+				} else {
+					// Still changing — wait a bit more.
+					setTimeout(function () {
+						if (finished) return;
+						lastRead = readIframe();
+						finish(lastRead);
+					}, 800);
+				}
+			}, 700);
 		});
 
-		// Timeout fallback in case load never fires.
-		timer = setTimeout(finish, IFRAME_LOAD_TIMEOUT);
+		// Timeout fallback in case load never fires (e.g. network error, 404).
+		timer = setTimeout(function () { finish(emptyResult('iframeTimeout')); }, loadTimeoutMs);
 
-		// Navigate the iframe (validated URL).
+		// Navigate the iframe.
 		iframe.src = parsedUrl.href;
 	}
 
 	/**
 	 * Parse a document.cookie string into an array of cookie objects.
-	 *
-	 * @param {string} cookieStr  The raw cookie string.
-	 * @param {string} domain     The domain to assign.
-	 * @return {Array} Array of {name, domain, duration, description, category}.
 	 */
 	function parseCookieString(cookieStr, domain) {
 		var result = [];
@@ -650,7 +1160,7 @@
 	}
 
 	/**
-	 * Parse the current browser's document.cookie into a name→value map.
+	 * Parse the current browser's document.cookie into a name->value map.
 	 */
 	function parseBrowserCookies() {
 		var map = {};
@@ -669,9 +1179,9 @@
 	/**
 	 * Find cookies in `after` that weren't in `before`.
 	 */
-	function diffCookies(before, after) {
+	function diffCookies(before, after, domain) {
 		var result = [];
-		var domain = location.hostname;
+		domain = domain || location.hostname;
 		for (var name in after) {
 			if (!before.hasOwnProperty(name)) {
 				result.push({
@@ -685,16 +1195,6 @@
 			}
 		}
 		return result;
-	}
-
-	/**
-	 * Check if a cookie name already exists in the collected array.
-	 */
-	function hasCookie(arr, name) {
-		for (var i = 0; i < arr.length; i++) {
-			if (arr[i].name === name) return true;
-		}
-		return false;
 	}
 
 	function autoCategorize(scope) {
