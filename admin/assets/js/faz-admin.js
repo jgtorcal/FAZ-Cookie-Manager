@@ -298,16 +298,15 @@
 		return cur !== undefined ? cur : (def !== undefined ? def : '');
 	};
 
+	// lgtm[js/prototype-pollution-utility] — guarded: __proto__, constructor, prototype blocked; intermediates use Object.create(null)
 	FAZ.deepSet = function (obj, path, value) {
 		if (!obj || typeof obj !== 'object' || !path) return;
 		var keys = path.split('.');
-		function isBlockedKey(key) {
-			return key === '__proto__' || key === 'constructor' || key === 'prototype';
-		}
+		var BLOCKED = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
 		var cur = obj;
 		for (var i = 0; i < keys.length - 1; i++) {
 			var key = keys[i];
-			if (isBlockedKey(key)) return;
+			if (BLOCKED[key]) return;
 			if (!Object.prototype.hasOwnProperty.call(cur, key) || cur[key] === null || typeof cur[key] !== 'object') {
 				cur[key] = Object.create(null);
 			}
@@ -315,7 +314,7 @@
 			if (!cur || typeof cur !== 'object') return;
 		}
 		var lastKey = keys[keys.length - 1];
-		if (isBlockedKey(lastKey)) return;
+		if (BLOCKED[lastKey]) return;
 		cur[lastKey] = value;
 	};
 

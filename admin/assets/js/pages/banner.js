@@ -708,11 +708,10 @@
 		}
 
 		// Parse the server-rendered banner template and extract only the consent
-		// bar (.faz-consent-container). The full template includes overlay, revisit
-		// widget, preference center, and opt-out popup - none needed for preview.
-		var tempDiv = document.createElement('div');
-		tempDiv.innerHTML = html; // Trusted admin-only content from our own API
-		var container = tempDiv.querySelector('.faz-consent-container');
+		// bar (.faz-consent-container). Uses DOMParser for safe inert parsing
+		// (scripts won't execute). Content is trusted admin-only API output.
+		var parsed = new DOMParser().parseFromString(html, 'text/html');
+		var container = parsed.querySelector('.faz-consent-container');
 		while (host.firstChild) host.removeChild(host.firstChild);
 		if (!container) {
 			var fallback = document.createElement('div');
