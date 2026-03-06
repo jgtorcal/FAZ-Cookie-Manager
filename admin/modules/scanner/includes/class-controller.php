@@ -161,6 +161,19 @@ class Controller {
 		if ( ! $this->can_spawn_background_process() ) {
 			wp_clear_scheduled_hook( self::HTTPONLY_CRON_HOOK );
 			wp_schedule_single_event( time() + 1, self::HTTPONLY_CRON_HOOK );
+			if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+				$cron_spawn = wp_remote_post(
+					site_url( '/wp-cron.php?doing_wp_cron=' . rawurlencode( sprintf( '%.22F', microtime( true ) ) ) ),
+					array(
+						'timeout'  => 0.5,
+						'blocking' => false,
+					)
+				);
+				if ( is_wp_error( $cron_spawn ) ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( '[FAZ Scanner] Unable to trigger wp-cron for httpOnly check: ' . $cron_spawn->get_error_message() );
+				}
+			}
 			return;
 		}
 
@@ -469,7 +482,7 @@ class Controller {
 			if ( ! empty( $body ) ) {
 				// Suppress XML errors and parse.
 				$previous = libxml_use_internal_errors( true );
-				$xml      = simplexml_load_string( $body );
+				$xml      = simplexml_load_string( $body, 'SimpleXMLElement', LIBXML_NONET );
 				libxml_use_internal_errors( $previous );
 
 				if ( false !== $xml ) {
@@ -487,7 +500,7 @@ class Controller {
 								if ( ! is_wp_error( $sub_response ) && 200 === wp_remote_retrieve_response_code( $sub_response ) ) {
 									$sub_body = wp_remote_retrieve_body( $sub_response );
 									$previous = libxml_use_internal_errors( true );
-									$sub_xml  = simplexml_load_string( $sub_body );
+									$sub_xml  = simplexml_load_string( $sub_body, 'SimpleXMLElement', LIBXML_NONET );
 									libxml_use_internal_errors( $previous );
 									if ( false !== $sub_xml && isset( $sub_xml->url ) ) {
 										foreach ( $sub_xml->url as $url_entry ) {
@@ -791,10 +804,16 @@ class Controller {
 		if ( ! empty( $scripts ) ) {
 			$inferred = Cookie_Database::lookup_scripts( $scripts );
 			foreach ( $inferred as $inf ) {
-				if ( ! isset( $seen[ $inf['name'] ] ) ) {
-					$seen[ $inf['name'] ] = true;
-					$unique[]             = $inf;
+				if ( ! is_array( $inf ) || empty( $inf['name'] ) ) {
+					continue;
 				}
+				$name = sanitize_text_field( $inf['name'] );
+				if ( isset( $seen[ $name ] ) ) {
+					continue;
+				}
+				$inf['name']  = $name;
+				$seen[ $name ] = true;
+				$unique[]      = $inf;
 			}
 		}
 
@@ -881,12 +900,25 @@ class Controller {
 			: ( isset( $category_map['necessary'] ) ? $category_map['necessary'] : 1 );
 
 		foreach ( $cookies as $cookie_data ) {
-			if ( isset( $existing_names[ $cookie_data['name'] ] ) ) {
+			if ( ! is_array( $cookie_data ) || empty( $cookie_data['name'] ) ) {
+				continue;
+			}
+			$cookie_data = wp_parse_args(
+				$cookie_data,
+				array(
+					'description' => '',
+					'duration'    => 'session',
+					'domain'      => '',
+					'category'    => 'necessary',
+				)
+			);
+			$name        = sanitize_text_field( $cookie_data['name'] );
+			if ( isset( $existing_names[ $name ] ) ) {
 				continue; // Don't overwrite existing cookies.
 			}
 
 			// Try known cookies database first (handles WP admin cookies, etc.).
-			$known = Cookie_Database::lookup( $cookie_data['name'] );
+			$known = Cookie_Database::lookup( $name );
 			if ( $known ) {
 				$cat_slug = $known['category'];
 				if ( ! empty( $known['description'] ) && empty( $cookie_data['description'] ) ) {
@@ -901,8 +933,8 @@ class Controller {
 			$category_id = isset( $category_map[ $cat_slug ] ) ? $category_map[ $cat_slug ] : $default_cat_id;
 
 			$cookie = new Cookie();
-			$cookie->set_name( sanitize_text_field( $cookie_data['name'] ) );
-			$cookie->set_slug( sanitize_title( $cookie_data['name'] ) );
+			$cookie->set_name( $name );
+			$cookie->set_slug( sanitize_title( $name ) );
 			$cookie->set_description( array( $default_lang => sanitize_text_field( $cookie_data['description'] ) ) );
 			$cookie->set_duration( array( $default_lang => sanitize_text_field( $cookie_data['duration'] ) ) );
 			$cookie->set_domain( sanitize_text_field( $cookie_data['domain'] ) );
@@ -911,7 +943,7 @@ class Controller {
 			$cookie->set_discovered( true );
 
 			Cookie_Controller::get_instance()->create_item( $cookie );
-			$existing_names[ $cookie_data['name'] ] = true;
+			$existing_names[ $name ] = true;
 		}
 	}
 

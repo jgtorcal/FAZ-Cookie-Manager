@@ -47,6 +47,7 @@ if ( defined( 'FAZ_REMOVE_ALL_DATA' ) && true === FAZ_REMOVE_ALL_DATA ) {
 			'faz_scan_details',
 			'faz_scan_history',
 			'faz_scan_counter',
+			'faz_scan_max_pages',
 			'faz_admin_notices',
 			'faz_first_time_activated_plugin',
 			'faz_cookie_consent_db_version',

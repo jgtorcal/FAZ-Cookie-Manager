@@ -877,7 +877,7 @@
 }
 .faz-scan-progress {
 	width: 100%;
-	background: #334155;
+	background: var(--faz-border);
 	border-radius: 4px;
 	height: 24px;
 	position: relative;

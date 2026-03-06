@@ -124,13 +124,27 @@
 		return !!(cookie && (cookie.discovered === true || cookie.discovered === 1 || cookie.discovered === '1'));
 	}
 
+	function getStaleKey(cookie) {
+		var name = (cookie && cookie.name) ? String(cookie.name).trim().toLowerCase() : '';
+		var domain = (cookie && cookie.domain) ? String(cookie.domain).trim().toLowerCase() : '';
+		if (!name) return '';
+		return name + '|' + domain;
+	}
+
+	function getStaleKeyFromName(name, domain) {
+		var normalizedName = name ? String(name).trim().toLowerCase() : '';
+		if (!normalizedName) return '';
+		var normalizedDomain = domain ? String(domain).trim().toLowerCase() : '';
+		return normalizedName + '|' + normalizedDomain;
+	}
+
 	function buildCookieNameSet(list, discoveredOnly) {
 		var set = {};
 		(list || []).forEach(function (cookie) {
-			var name = (cookie && cookie.name) ? String(cookie.name).trim() : '';
-			if (!name) return;
+			var key = getStaleKey(cookie);
+			if (!key) return;
 			if (discoveredOnly && !isDiscoveredCookie(cookie)) return;
-			set[name] = true;
+			set[key] = true;
 		});
 		return set;
 	}
@@ -138,9 +152,9 @@
 	function setStaleCookies(previousSet, currentSet) {
 		staleCookieNames = {};
 		staleCookieCount = 0;
-		Object.keys(previousSet || {}).forEach(function (name) {
-			if (!currentSet || !currentSet[name]) {
-				staleCookieNames[name] = true;
+		Object.keys(previousSet || {}).forEach(function (key) {
+			if (!currentSet || !currentSet[key]) {
+				staleCookieNames[key] = true;
 				staleCookieCount++;
 			}
 		});
@@ -268,7 +282,8 @@
 
 		cookies.forEach(function (cookie) {
 			var tr = document.createElement('tr');
-			var isStale = !!staleCookieNames[cookie.name];
+			var staleKey = getStaleKey(cookie);
+			var isStale = !!(staleKey && staleCookieNames[staleKey]);
 			if (isStale) {
 				tr.classList.add('faz-cookie-stale');
 				visibleStaleCount++;
@@ -483,8 +498,9 @@
 
 	function deleteStaleCookieQuick(cookie) {
 		FAZ.del('cookies/' + getCookieId(cookie)).then(function () {
-			if (cookie && cookie.name && staleCookieNames[cookie.name]) {
-				delete staleCookieNames[cookie.name];
+			var staleKey = getStaleKey(cookie);
+			if (staleKey && staleCookieNames[staleKey]) {
+				delete staleCookieNames[staleKey];
 				staleCookieCount = Math.max(0, staleCookieCount - 1);
 			}
 			FAZ.notify('Stale cookie deleted');
@@ -503,9 +519,9 @@
 				var list = Array.isArray(data) ? data : (data.items || []);
 				var ids = [];
 				list.forEach(function (cookie) {
-					var name = (cookie && cookie.name) ? String(cookie.name) : '';
+					var staleKey = getStaleKey(cookie);
 					var id = getCookieId(cookie);
-					if (name && staleCookieNames[name] && id) {
+					if (staleKey && staleCookieNames[staleKey] && id) {
 						ids.push(parseInt(id, 10));
 					}
 				});
@@ -680,10 +696,6 @@
 		};
 		var discoverStart = Date.now();
 
-		// Incremental mode is disabled for now because stale-cookie diffing
-		// requires a full baseline/scan comparison to be reliable.
-		var allowIncremental = false;
-
 		// Get stored fingerprint for optional incremental scanning.
 		var storedFingerprint = '';
 		try {
@@ -691,6 +703,7 @@
 		} catch (e) {
 			console.warn('[FAZ Scanner] Cannot read fingerprint from localStorage — incremental scanning disabled.', e.message);
 		}
+		var allowIncremental = !safeMode && !!storedFingerprint;
 
 		snapshotDiscoveredCookies().then(function (previousDiscoveredSet) {
 			// Step 1: Ask server for URLs to scan.
@@ -741,29 +754,34 @@
 						pagesScanned: scanMetrics.pagesScanned,
 						incremental: scanMetrics.incremental,
 					};
-					FAZ.post('scans/import', {
-						cookies: collectedCookies,
-						pages_scanned: scanMetrics.pagesScanned,
-						scripts: collectedScripts,
-						metrics: metricsToSend,
-					}).then(function (res) {
-						scanMetrics.importMs = Date.now() - importStart;
-						var total = res.total_cookies || collectedCookies.length;
-						var currentDetectedSet = {};
-						if (res && Array.isArray(res.cookie_names) && res.cookie_names.length) {
-							res.cookie_names.forEach(function (name) {
-								if (name) currentDetectedSet[String(name)] = true;
-							});
-						} else {
-							currentDetectedSet = buildCookieNameSet(collectedCookies, false);
-						}
-						if (scanMetrics.incremental) {
-							// Incremental scan covers only a subset; avoid false stale flags.
-							staleCookieNames = {};
-							staleCookieCount = 0;
-						} else {
-							setStaleCookies(previousDiscoveredSet, currentDetectedSet);
-						}
+						FAZ.post('scans/import', {
+							cookies: collectedCookies,
+							pages_scanned: scanMetrics.pagesScanned,
+							scripts: collectedScripts,
+							metrics: metricsToSend,
+						}).then(function (res) {
+							scanMetrics.importMs = Date.now() - importStart;
+							var total = res.total_cookies || collectedCookies.length;
+							var currentDetectedSet = buildCookieNameSet(collectedCookies, false);
+							if (res && Array.isArray(res.cookie_names) && res.cookie_names.length) {
+								res.cookie_names.forEach(function (name) {
+									var prefix = name ? String(name).trim().toLowerCase() + '|' : '';
+									if (!prefix) return;
+									// Server-inferred names lack domain; match any previously-known key by name prefix.
+									Object.keys(previousDiscoveredSet).forEach(function (key) {
+										if (key.indexOf(prefix) === 0) {
+											currentDetectedSet[key] = true;
+										}
+									});
+								});
+							}
+							if (scanMetrics.incremental) {
+								// Incremental scan covers only a subset; avoid false stale flags.
+								staleCookieNames = {};
+								staleCookieCount = 0;
+							} else {
+								setStaleCookies(previousDiscoveredSet, currentDetectedSet);
+							}
 
 						var msg = 'Scan complete \u2014 ' + total + ' cookies found on ' + scanMetrics.pagesScanned + ' pages';
 						if (scanMetrics.earlyStopReason) {
@@ -892,7 +910,7 @@
 
 				var foundNew = false;
 				var issue = pageResult.issue || '';
-				if (issue && diagnostics.hasOwnProperty(issue)) {
+				if (issue && Object.prototype.hasOwnProperty.call(diagnostics, issue)) {
 					diagnostics[issue]++;
 					diagnostics.totalIssues++;
 				}

@@ -89,9 +89,10 @@ ref._fazSetCookie = function (name, value, days = 0, domain = _fazStore._rootDom
     }
     const toSetTime =
         days === 0 ? 0 : date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+    const secure = location.protocol === 'https:' ? ' Secure;' : '';
     document.cookie = `${name}=${value}; expires=${new Date(
         toSetTime
-    ).toUTCString()}; path=/;${domain}; SameSite=Strict;`;
+    ).toUTCString()}; path=/;${domain}; SameSite=Lax;${secure}`;
 }
 
 function _fazSetConsentID() {

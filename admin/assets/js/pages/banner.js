@@ -610,7 +610,11 @@
 		FAZ.post('banners/preview', payload).then(function (result) {
 			renderPreview(result.html || '', result.styles || '', hiddenTags);
 		}).catch(function () {
-			host.innerHTML = '<div style="padding:24px;color:#94a3b8;text-align:center;">Preview unavailable</div>';
+			var errDiv = document.createElement('div');
+			errDiv.style.cssText = 'padding:24px;color:#94a3b8;text-align:center;';
+			errDiv.textContent = 'Preview unavailable';
+			host.textContent = '';
+			host.appendChild(errDiv);
 		});
 	}
 

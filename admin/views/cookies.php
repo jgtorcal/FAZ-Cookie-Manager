@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
 						<button class="faz-btn faz-btn-primary faz-btn-sm" id="faz-add-cookie-btn">Add Cookie</button>
 					</div>
 				</div>
-					<div class="faz-card-body">
+			<div class="faz-card-body">
 						<div id="faz-bulk-bar" style="display:none" class="faz-bulk-bar">
 							<span class="faz-bulk-count">0 selected</span>
 							<button type="button" class="faz-btn faz-btn-sm" id="faz-bulk-delete-btn" style="color:var(--faz-danger)">Delete Selected</button>

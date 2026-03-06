@@ -26,6 +26,10 @@ Most cookie consent plugins follow the same pattern: a free version with cripple
 | Cloud dependency | No | **Yes** | **No** |
 | Price | Free | $10-50/mo | **Free forever** |
 
+> **A note on IAB TCF v2.3:** The plugin includes a fully functional IAB TCF v2.3 CMP implementation -- TC String encoding, GVL integration, vendor consent UI, and all required `__tcfapi()` commands work correctly. However, for the TC String to be recognized by the ad-tech supply chain, the CMP must be registered with IAB Europe (which requires an annual fee). CMP registration is on the roadmap. If you'd like to help make it happen, consider supporting the project:
+>
+> [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/fabiodalez)
+
 ---
 
 ## Screenshots
@@ -213,6 +217,7 @@ Full `__tcfapi()` implementation compliant with the IAB Transparency & Consent F
 - **Global Vendor List (GVL)**: Server-side download and caching of the IAB GVL v3 (1,100+ vendors). Weekly auto-update via WP-Cron, manual update from admin UI
 - **GVL Admin Page**: Browse, search, and filter all IAB-registered vendors. Select which vendors your site uses. Paginated table with purpose/feature details
 - **Real Vendor Consent**: TC Strings encode actual vendor consent and legitimate interest bits based on user choices and vendor purpose declarations
+- **Special Feature Opt-ins**: TCF v2.3 Special Features (precise geolocation, device scanning) mapped from user category consent
 - **DisclosedVendors Segment**: Mandatory segment listing all vendors the CMP discloses to users
 - **Vendor Legitimate Interest**: Honors user's Right to Object -- LI bits are only set when the user hasn't objected to the corresponding purposes
 - **Vendor Consent UI**: Per-vendor toggles in the preference center, with vendor name, purposes, privacy policy link, and cookie retention info
@@ -222,6 +227,28 @@ Full `__tcfapi()` implementation compliant with the IAB Transparency & Consent F
 - **CMP Stub**: Inline stub responds to `ping` before main script loads (`cmpStatus: 'stub'`)
 - **Dynamic config**: ConsentLanguage, publisherCC, gdprApplies, CMP ID, Purpose One Treatment -- all configured from server-side settings
 - **GVL file storage**: Cached at `wp-content/uploads/faz-cookie-manager/gvl/vendor-list.json` for frontend access
+
+#### CMP ID and IAB Registration
+
+FAZ Cookie Manager works in two modes:
+
+| Mode | CMP ID | What works | What doesn't |
+|------|--------|------------|--------------|
+| **Self-hosted** (default) | `0` | Banner, cookie blocking, Google Consent Mode v2, consent logging, all admin features | Ad-tech vendors ignore the TC String (unrecognized CMP) |
+| **IAB-registered** | Your ID | Everything above **plus** full TCF vendor chain -- SSPs, DSPs, and ad exchanges read and honor the TC String | Requires [IAB CMP registration](https://iabeurope.eu/cmp-list/) (annual fee) |
+
+**When do you need a registered CMP ID?**
+
+- If you run programmatic advertising (header bidding, ad exchanges) and need the buy-side to respect granular vendor consent via the TC String
+- If your DPA or legal counsel requires a registered CMP for TCF compliance
+
+**When is self-hosted (CMP ID = 0) sufficient?**
+
+- You only need GDPR/ePrivacy-compliant cookie consent (banner + script blocking)
+- You use Google Consent Mode v2 (GCM uses its own consent signal channel, independent of TCF)
+- You don't participate in the IAB programmatic advertising supply chain
+
+To set your CMP ID: **Settings > IAB TCF v2.3 > CMP ID**
 
 ### Microsoft Consent Integration
 
@@ -473,6 +500,12 @@ Value format: `consentid:{base64},consent:yes,action:yes,necessary:yes,functiona
 ## Author
 
 **Fabio D'Alessandro** -- [fabiodalez.it](https://fabiodalez.it/)
+
+## Support the Project
+
+If FAZ Cookie Manager is useful to you, consider buying me a coffee. Your support helps fund IAB CMP registration and continued development.
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/fabiodalez)
 
 ## License
 

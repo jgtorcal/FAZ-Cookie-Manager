@@ -143,6 +143,33 @@
 		return purposes;
 	}
 
+	// Map FAZ category slugs → TCF Special Feature IDs
+	// SF 1: Use precise geolocation data  → analytics/performance categories
+	// SF 2: Actively scan device characteristics → analytics/functional categories
+	var CATEGORY_TO_SPECIAL_FEATURES = {
+		analytics:   [1, 2],
+		performance: [1],
+		functional:  [2]
+	};
+
+	/**
+	 * Build special feature opt-ins from FAZ category consent.
+	 * Returns an object { "1": true/false, "2": true/false }.
+	 */
+	function buildSpecialFeatureOptins(categoryConsent) {
+		var sf = { "1": false, "2": false };
+		for (var cat in CATEGORY_TO_SPECIAL_FEATURES) {
+			if (!CATEGORY_TO_SPECIAL_FEATURES.hasOwnProperty(cat)) continue;
+			if (categoryConsent[cat]) {
+				var ids = CATEGORY_TO_SPECIAL_FEATURES[cat];
+				for (var j = 0; j < ids.length; j++) {
+					sf[String(ids[j])] = true;
+				}
+			}
+		}
+		return sf;
+	}
+
 	/**
 	 * Build vendor consent map.
 	 * A vendor gets consent=true if:
@@ -265,7 +292,7 @@
 	/**
 	 * Encode the TC string (core segment + DisclosedVendors).
 	 */
-	function encodeTcString(purposeConsent) {
+	function encodeTcString(purposeConsent, sfOptins) {
 		var bits = [];
 		var vendorConsent = buildVendorConsent(purposeConsent);
 		var purposeLI     = buildPurposeLI(purposeConsent);
@@ -287,7 +314,10 @@
 		pushBits(bits, TCF_POLICY_VERSION, 6);
 		pushBits(bits, 1, 1); // IsServiceSpecific = true
 		pushBits(bits, 0, 1); // UseNonStdTexts = false
-		pushBits(bits, 0, 12); // SpecialFeatureOptIns
+		// SpecialFeatureOptIns - 12 bits
+		for (var sf = 1; sf <= 12; sf++) {
+			pushBits(bits, (sfOptins && sfOptins[String(sf)]) ? 1 : 0, 1);
+		}
 
 		// PurposesConsent - 24 bits
 		for (var p = 1; p <= 24; p++) {
@@ -365,7 +395,7 @@
 	/**
 	 * Build the TCData object returned by getTCData / addEventListener.
 	 */
-	function buildTCData(purposeConsent, tcString, listenerIdVal) {
+	function buildTCData(purposeConsent, sfOptins, tcString, listenerIdVal) {
 		var vendorConsent = buildVendorConsent(purposeConsent);
 		var purposeLI     = buildPurposeLI(purposeConsent);
 		var vendorLI      = buildVendorLI(purposeLI);
@@ -412,7 +442,7 @@
 				consents:            vcObj,
 				legitimateInterests: vlObj
 			},
-			specialFeatureOptins: {},
+			specialFeatureOptins: sfOptins || {},
 			publisher: {
 				consents:            {},
 				legitimateInterests: {},
@@ -429,7 +459,8 @@
 	function notifyListeners(eventStatus) {
 		var consent  = readConsent();
 		var purposes = buildPurposeConsent(consent);
-		var tcStr    = encodeTcString(purposes);
+		var sf       = buildSpecialFeatureOptins(consent);
+		var tcStr    = encodeTcString(purposes, sf);
 
 		// Only write euconsent-v2 after user action, not during initial banner display.
 		if (eventStatus === "useractioncomplete") {
@@ -439,7 +470,7 @@
 		for (var id in listeners) {
 			if (!listeners.hasOwnProperty(id)) continue;
 			var entry = listeners[id];
-			var data  = buildTCData(purposes, tcStr, parseInt(id, 10));
+			var data  = buildTCData(purposes, sf, tcStr, parseInt(id, 10));
 			data.eventStatus = eventStatus || "tcloaded";
 			try { entry.callback(data, true); } catch (_unused) { /* ignore listener error */ }
 		}
@@ -461,7 +492,7 @@
 					cmpLoaded:         cmpLoaded,
 					cmpStatus:         "loaded",
 					displayStatus:     displayOpen ? "visible" : "hidden",
-					apiVersion:        "2.2",
+					apiVersion:        "2.3",
 					cmpVersion:        CMP_VERSION,
 					cmpId:             CMP_ID,
 					gvlVersion:        VENDOR_LIST,
@@ -472,8 +503,9 @@
 			case "getTCData":
 				consent  = readConsent();
 				purposes = buildPurposeConsent(consent);
-				tcStr    = encodeTcString(purposes);
-				data     = buildTCData(purposes, tcStr);
+				var sfGet = buildSpecialFeatureOptins(consent);
+				tcStr    = encodeTcString(purposes, sfGet);
+				data     = buildTCData(purposes, sfGet, tcStr);
 				data.eventStatus = "tcloaded";
 				callback(data, true);
 				break;
@@ -483,8 +515,9 @@
 				listeners[listenerId] = { callback: callback };
 				consent  = readConsent();
 				purposes = buildPurposeConsent(consent);
-				tcStr    = encodeTcString(purposes);
-				data     = buildTCData(purposes, tcStr, listenerId);
+				var sfAdd = buildSpecialFeatureOptins(consent);
+				tcStr    = encodeTcString(purposes, sfAdd);
+				data     = buildTCData(purposes, sfAdd, tcStr, listenerId);
 				data.eventStatus = "tcloaded";
 				callback(data, true);
 				break;
@@ -599,7 +632,8 @@
 	if (hasUserAction()) {
 		var existingConsent = readConsent();
 		var purposes = buildPurposeConsent(existingConsent);
-		var tcStr    = encodeTcString(purposes);
+		var sfInit   = buildSpecialFeatureOptins(existingConsent);
+		var tcStr    = encodeTcString(purposes, sfInit);
 		setEuconsentCookie(tcStr);
 	}
 
