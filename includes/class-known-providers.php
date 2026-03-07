@@ -359,7 +359,7 @@ class Known_Providers {
 			/* ── Google reCAPTCHA ─────────────────────────── */
 			'google-recaptcha' => array(
 				'label'    => 'Google reCAPTCHA',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'google.com/recaptcha',
 					'gstatic.com/recaptcha',
@@ -1327,7 +1327,7 @@ class Known_Providers {
 			/* ── hCaptcha ────────────────────────────────── */
 			'hcaptcha' => array(
 				'label'    => 'hCaptcha',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'hcaptcha.com/1/api.js',
 					'js.hcaptcha.com',
@@ -1338,7 +1338,7 @@ class Known_Providers {
 			/* ── Cloudflare Turnstile ────────────────────── */
 			'cloudflare-turnstile' => array(
 				'label'    => 'Cloudflare Turnstile',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'challenges.cloudflare.com/turnstile',
 				),
@@ -1348,7 +1348,7 @@ class Known_Providers {
 			/* ── Wordfence ───────────────────────────────── */
 			'wordfence' => array(
 				'label'    => 'Wordfence',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'wordfence/assets/js/',
 					'wfLogHumanRan',

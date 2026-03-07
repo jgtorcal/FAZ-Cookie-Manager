@@ -229,16 +229,17 @@ class Settings extends Store {
 				$value = is_array( $value ) ? array_map( 'sanitize_text_field', $value ) : array();
 				break;
 			case 'custom_rules':
+				$allowed_categories = array( 'analytics', 'marketing', 'functional', 'performance' );
 				if ( ! is_array( $value ) ) {
 					$value = array();
 				}
-				$value = array_values( array_filter( array_map( function ( $rule ) {
+				$value = array_values( array_filter( array_map( function ( $rule ) use ( $allowed_categories ) {
 					if ( ! is_array( $rule ) ) {
 						return null;
 					}
 					$pattern  = isset( $rule['pattern'] ) ? sanitize_text_field( $rule['pattern'] ) : '';
 					$category = isset( $rule['category'] ) ? sanitize_text_field( $rule['category'] ) : '';
-					if ( empty( $pattern ) || empty( $category ) ) {
+					if ( empty( $pattern ) || empty( $category ) || ! in_array( $category, $allowed_categories, true ) ) {
 						return null;
 					}
 					return array( 'pattern' => $pattern, 'category' => $category );

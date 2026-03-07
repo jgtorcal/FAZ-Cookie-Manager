@@ -476,7 +476,7 @@ class Frontend {
 		// Merge DB-based providers with Known_Providers for client-side blocking.
 		$valid_categories = $this->get_valid_category_slugs();
 		$known            = Known_Providers::get_all();
-		foreach ( $known as $service_id => $service ) {
+		foreach ( $known as $service ) {
 			if ( 'necessary' === $service['category'] ) {
 				continue;
 			}
@@ -489,6 +489,19 @@ class Frontend {
 				}
 			}
 		}
+
+		// 3. Admin custom blocking rules (Settings → Script Blocking).
+		$custom_rules = isset( $settings['script_blocking']['custom_rules'] ) ? $settings['script_blocking']['custom_rules'] : array();
+		foreach ( $custom_rules as $rule ) {
+			$pattern  = isset( $rule['pattern'] ) ? $rule['pattern'] : '';
+			$category = isset( $rule['category'] ) ? $rule['category'] : '';
+			if ( ! empty( $pattern ) && ! empty( $category ) && in_array( $category, $valid_categories, true ) ) {
+				$this->providers[ $pattern ] = array( $category );
+			}
+		}
+
+		// 4. Developer filter.
+		$this->providers = apply_filters( 'faz_blocking_rules_client', $this->providers );
 
 		foreach ( $this->providers as $key => $value ) {
 			$providers[] = array(
@@ -770,8 +783,8 @@ class Frontend {
 			return $full;
 		}
 
-		// Rename src → data-faz-src.
-		$new_attrs = preg_replace( '/\bsrc\s*=\s*/', 'data-faz-src=', $attrs, 1 );
+		// Rename src → data-faz-src (avoid matching data-src).
+		$new_attrs = preg_replace( '/(^|\s)src\s*=\s*/i', '$1data-faz-src=', $attrs, 1 );
 		$new_attrs .= ' data-faz-category="' . esc_attr( $matched_category ) . '"';
 		$new_attrs .= ' style="display:none"';
 
@@ -894,8 +907,8 @@ class Frontend {
 			return $full;
 		}
 
-		// Rename href → data-faz-href.
-		$new_attrs = preg_replace( '/\bhref\s*=\s*/', 'data-faz-href=', $attrs, 1 );
+		// Rename href → data-faz-href (avoid matching data-href).
+		$new_attrs = preg_replace( '/(^|\s)href\s*=\s*/i', '$1data-faz-href=', $attrs, 1 );
 		$new_attrs .= ' data-faz-category="' . esc_attr( $matched_category ) . '"';
 		return '<link' . $new_attrs . '/>';
 	}
@@ -1052,13 +1065,13 @@ class Frontend {
 	 * @return string|false Matched category slug or false.
 	 */
 	private function match_script_to_provider( $attrs, $content, $providers ) {
-		// Extract src if present.
-		$src = '';
-		if ( preg_match( '/src\s*=\s*["\']([^"\']+)["\']/', $attrs, $sm ) ) {
-			$src = $sm[1];
+		// Extract src or href if present (link tags use href, scripts use src).
+		$url = '';
+		if ( preg_match( '/(?:src|href)\s*=\s*["\']([^"\']+)["\']/', $attrs, $sm ) ) {
+			$url = $sm[1];
 		}
 
-		$haystack = $src . ' ' . $content;
+		$haystack = $url . ' ' . $content;
 
 		foreach ( $providers as $pattern => $category ) {
 			if ( empty( $pattern ) ) {
@@ -1719,7 +1732,7 @@ class Frontend {
 		$host   = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
 		$domain = preg_replace( '/^www\./', '', $host );
 
-		foreach ( $_COOKIE as $name => $value ) {
+		foreach ( array_keys( $_COOKIE ) as $name ) {
 			foreach ( $cookie_map as $pattern => $category ) {
 				if ( ! in_array( $category, $blocked_categories, true ) ) {
 					continue;
@@ -1812,7 +1825,7 @@ class Frontend {
 		}
 
 		// Hide social embed containers that depend on blocked scripts.
-		$content = $this->process_social_embeds( $content, $providers, $blocked_categories );
+		$content = $this->process_social_embeds( $content, $blocked_categories );
 
 		return $content;
 	}
@@ -1891,14 +1904,22 @@ class Frontend {
 		// Neutralize the embed: wrap iframes, disable scripts.
 		$blocked_html = $html;
 		// Rename iframe src to prevent loading.
-		$blocked_html = preg_replace( '/(<iframe\b[^>]*)\bsrc\s*=\s*/', '$1data-faz-src=', $blocked_html );
+		$blocked_html = preg_replace( '/(<iframe\b[^>]*\s)src\s*=\s*/i', '$1data-faz-src=', $blocked_html );
 		// Add data-faz-category to iframes.
 		$blocked_html = preg_replace( '/(<iframe\b)/', '$1 data-faz-category="' . esc_attr( $matched_category ) . '" style="display:none"', $blocked_html );
-		// Disable scripts.
-		$blocked_html = preg_replace( '/(<script\b[^>]*)type\s*=\s*["\']text\/javascript["\']/', '$1type="text/plain"', $blocked_html );
-		if ( false !== strpos( $blocked_html, '<script' ) && false === strpos( $blocked_html, 'type="text/plain"' ) ) {
-			$blocked_html = str_replace( '<script', '<script type="text/plain" data-faz-category="' . esc_attr( $matched_category ) . '"', $blocked_html );
-		}
+		// Disable scripts using set_script_type_plain() for consistent type handling.
+		$cat_attr = $matched_category;
+		$blocked_html = preg_replace_callback(
+			'#<script\b([^>]*)>(.*?)</script>#is',
+			function ( $m ) use ( $cat_attr ) {
+				$attrs = $this->set_script_type_plain( $m[1] );
+				if ( false === strpos( $attrs, 'data-faz-category' ) ) {
+					$attrs .= ' data-faz-category="' . esc_attr( $cat_attr ) . '"';
+				}
+				return '<script' . $attrs . '>' . $m[2] . '</script>';
+			},
+			$blocked_html
+		);
 
 		// Build placeholder.
 		$placeholder = '<div class="faz-iframe-placeholder' . ( $thumbnail_html ? ' faz-iframe-placeholder--video' : '' ) . '" data-faz-category="' . esc_attr( $matched_category ) . '">'
@@ -1931,12 +1952,11 @@ class Frontend {
 	 * elements remain visible as plain text. This method hides them and
 	 * adds a consent placeholder.
 	 *
-	 * @param string $content           HTML content.
-	 * @param array  $providers         Provider→category map.
+	 * @param string $content            HTML content.
 	 * @param array  $blocked_categories Blocked category slugs.
 	 * @return string Modified content.
 	 */
-	private function process_social_embeds( $content, $providers, $blocked_categories ) {
+	private function process_social_embeds( $content, $blocked_categories ) {
 		$social_classes = array(
 			'fb-page'          => array( 'label' => 'Facebook', 'category' => 'marketing' ),
 			'fb-video'         => array( 'label' => 'Facebook', 'category' => 'marketing' ),

@@ -1424,9 +1424,7 @@ function _fazShouldChangeType(element, src) {
     var _fazOrigXHROpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (method, url) {
         var endpoint = _fazExtractEndpoint(url);
-        if (endpoint && _fazShouldBlockProvider(endpoint)) {
-            this._fazBlocked = true;
-        }
+        this._fazBlocked = !!(endpoint && _fazShouldBlockProvider(endpoint));
         return _fazOrigXHROpen.apply(this, arguments);
     };
     var _fazOrigXHRSend = XMLHttpRequest.prototype.send;
@@ -1623,7 +1621,8 @@ function _fazCleanupRevokedCookies() {
 function _fazCookieNameMatches(name, pattern) {
     if (name === pattern) return true;
     if (pattern.indexOf("*") === -1) return false;
-    var regex = new RegExp("^" + pattern.replace(/\./g, "\\.").replace(/\*/g, ".*") + "$");
+    var escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+    var regex = new RegExp("^" + escaped + "$");
     return regex.test(name);
 }
 
@@ -2067,16 +2066,20 @@ function _fazSaveVendorConsent(choice) {
  * Accept a single consent category programmatically (used by iframe placeholders).
  */
 window._fazAcceptCategory = function (categorySlug) {
+    var matched = false;
     for (const cat of _fazStore._categories) {
         if (cat.slug === categorySlug && !cat.isNecessary) {
+            matched = true;
             ref._fazSetInStore(cat.slug, "yes");
             // Sync checkbox so _fazAcceptCookies("custom") reads the correct state.
             var cb = document.getElementById("fazSwitch" + cat.slug);
             if (cb) cb.checked = true;
             var cbDirect = document.getElementById("fazCategoryDirect" + cat.slug);
             if (cbDirect) cbDirect.checked = true;
+            break;
         }
     }
+    if (!matched) return;
     _fazAcceptCookies("custom");
     _fazRemoveBanner();
     _fazHidePreferenceCenter();
