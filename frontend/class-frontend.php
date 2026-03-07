@@ -106,6 +106,7 @@ class Frontend {
 		add_action( 'wp_head', array( $this, 'insert_styles' ) );
 		add_action( 'template_redirect', array( $this, 'start_output_buffer' ) );
 		add_filter( 'script_loader_tag', array( $this, 'filter_script_loader_tag' ), 10, 3 );
+		add_filter( 'style_loader_tag', array( $this, 'filter_style_loader_tag' ), 10, 4 );
 		add_action( 'send_headers', array( $this, 'shred_non_consented_cookies' ) );
 	}
 
@@ -319,6 +320,11 @@ class Frontend {
 			. '.faz-iframe-placeholder-inner p{margin:0 0 16px;font-size:14px;line-height:1.5}'
 			. '.faz-iframe-placeholder-btn{display:inline-block;padding:10px 24px;background:#1863DC;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background .2s}'
 			. '.faz-iframe-placeholder-btn:hover{background:#1352b5}'
+			. '.faz-iframe-placeholder--video{min-height:300px}'
+			. '.faz-iframe-placeholder--video .faz-iframe-placeholder-inner{position:relative;z-index:2;background:rgba(0,0,0,.65);border-radius:8px;padding:24px 32px;color:#fff}'
+			. '.faz-iframe-placeholder--video .faz-iframe-placeholder-inner svg{color:#fff}'
+			. '.faz-iframe-placeholder--video .faz-iframe-placeholder-inner p{color:#eee}'
+			. '.faz-iframe-placeholder-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px}'
 			. '</style>';
 	}
 	/**
@@ -726,10 +732,17 @@ class Frontend {
 		// Detect the service label for the placeholder.
 		$service_label = $this->get_service_label_from_attrs( $attrs );
 
+		// Try to extract a video thumbnail (YouTube/Vimeo).
+		$thumbnail_html = $this->get_video_thumbnail_html( $attrs );
+
 		// Build placeholder.
-		$placeholder = '<div class="faz-iframe-placeholder" data-faz-category="' . esc_attr( $matched_category ) . '">'
+		$placeholder = '<div class="faz-iframe-placeholder' . ( $thumbnail_html ? ' faz-iframe-placeholder--video' : '' ) . '" data-faz-category="' . esc_attr( $matched_category ) . '">'
+			. $thumbnail_html
 			. '<div class="faz-iframe-placeholder-inner">'
-			. '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>'
+			. ( $thumbnail_html
+				? '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+				: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>'
+			)
 			. '<p>' . esc_html( sprintf(
 				/* translators: %s: service name (e.g. "YouTube", "Google Maps") */
 				__( 'This content is blocked because %s cookies have not been accepted.', 'faz-cookie-manager' ),
@@ -761,6 +774,21 @@ class Frontend {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Extract a video thumbnail URL from iframe attributes (YouTube/Vimeo).
+	 *
+	 * @param string $attrs Iframe attribute string.
+	 * @return string HTML for the thumbnail background, or empty string.
+	 */
+	private function get_video_thumbnail_html( $attrs ) {
+		// YouTube: extract video ID from src.
+		if ( preg_match( '/youtube(?:-nocookie)?\.com\/embed\/([a-zA-Z0-9_-]{11})/', $attrs, $yt ) ) {
+			$thumb_url = 'https://img.youtube.com/vi/' . $yt[1] . '/hqdefault.jpg';
+			return '<img class="faz-iframe-placeholder-thumb" src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
+		}
+		return '';
 	}
 
 	/**
@@ -920,6 +948,13 @@ class Frontend {
 				$map[ $pattern ] = $category;
 			}
 		}
+
+		// 3. Custom rules via filter (allows developers to add their own).
+		// Example: add_filter( 'faz_blocking_rules', function( $rules ) {
+		//     $rules['custom-tracker.com/script.js'] = 'marketing';
+		//     return $rules;
+		// });
+		$map = apply_filters( 'faz_blocking_rules', $map );
 
 		return $map;
 	}
@@ -1502,7 +1537,8 @@ class Frontend {
 			if ( empty( $pattern ) ) {
 				continue;
 			}
-			if ( false !== stripos( $src, $pattern ) || false !== stripos( $tag, $pattern ) ) {
+			// Match against handle, src, and full tag.
+			if ( false !== stripos( $handle, $pattern ) || false !== stripos( $src, $pattern ) || false !== stripos( $tag, $pattern ) ) {
 				$blocked = $this->get_blocked_categories();
 				if ( in_array( $category, $blocked, true ) ) {
 					// Replace type.
@@ -1513,6 +1549,51 @@ class Frontend {
 					// Add category attribute.
 					if ( false === strpos( $tag, 'data-faz-category' ) ) {
 						$tag = str_replace( '<script ', '<script data-faz-category="' . esc_attr( $category ) . '" ', $tag );
+					}
+				}
+				break;
+			}
+		}
+		return $tag;
+	}
+
+	/**
+	 * Filter WP-enqueued stylesheets (e.g. Google Fonts, Adobe Fonts).
+	 *
+	 * Replaces href with data-faz-href to prevent loading before consent.
+	 *
+	 * @param string $tag    Full <link> tag.
+	 * @param string $handle Style handle.
+	 * @param string $href   Stylesheet URL.
+	 * @param string $media  Media attribute.
+	 * @return string Modified tag.
+	 */
+	public function filter_style_loader_tag( $tag, $handle, $href, $media ) {
+		if ( is_admin() ) {
+			return $tag;
+		}
+		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
+			return $tag;
+		}
+		if ( $this->is_whitelisted( $tag, '' ) ) {
+			return $tag;
+		}
+
+		$providers = $this->get_provider_category_map();
+		if ( empty( $providers ) ) {
+			return $tag;
+		}
+
+		foreach ( $providers as $pattern => $category ) {
+			if ( empty( $pattern ) ) {
+				continue;
+			}
+			if ( false !== stripos( $handle, $pattern ) || false !== stripos( $href, $pattern ) ) {
+				$blocked = $this->get_blocked_categories();
+				if ( in_array( $category, $blocked, true ) ) {
+					$tag = preg_replace( '/\bhref\s*=\s*/', 'data-faz-href=', $tag, 1 );
+					if ( false === strpos( $tag, 'data-faz-category' ) ) {
+						$tag = str_replace( '<link ', '<link data-faz-category="' . esc_attr( $category ) . '" ', $tag );
 					}
 				}
 				break;
