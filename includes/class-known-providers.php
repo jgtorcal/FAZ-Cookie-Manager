@@ -45,7 +45,7 @@ class Known_Providers {
 					'www.google-analytics.com/analytics.js',
 					"gtag('js'",
 					"gtag('config'",
-					'_getTracker',
+					'_getTracker(',
 					'ga.create',
 					"ga('create'",
 					"ga('send'",
@@ -105,7 +105,7 @@ class Known_Providers {
 					'gtmkit',
 					'gtm4wp-',
 					'zeeker-gtm',
-					'dataLayer.push(',
+					'dataLayer.push({',
 					'google_tag_manager',
 				),
 				'cookies'  => array(),
@@ -217,8 +217,10 @@ class Known_Providers {
 					'uwt.js',
 					'twq(',
 					'static.ads-twitter.com',
+					't.co/i/adsct',
+					'analytics.twitter.com',
 				),
-				'cookies'  => array( 'personalization_id', 'guest_id' ),
+				'cookies'  => array( 'personalization_id', 'guest_id', 'muc_ads' ),
 			),
 
 			/* ── LinkedIn ─────────────────────────────────── */
@@ -244,8 +246,9 @@ class Known_Providers {
 					'sc-static.net/scevent.min.js',
 					'snapchat.com',
 					'snaptr(',
+					'tr.snapchat.com',
 				),
-				'cookies'  => array( '_scid', 'sc_at' ),
+				'cookies'  => array( '_scid', '_scid_r', 'sc_at' ),
 			),
 
 			/* ── Microsoft Advertising / Bing UET ─────────── */
@@ -257,8 +260,9 @@ class Known_Providers {
 					'bat.bing.com/bat.js',
 					'UET tag',
 					'uetq',
+					'uetTag',
 				),
-				'cookies'  => array( '_uetsid', '_uetvid', 'MUID' ),
+				'cookies'  => array( '_uetsid', '_uetsid_exp', '_uetvid', '_uetvid_exp', 'MUID' ),
 			),
 
 			/* ── Microsoft Clarity ────────────────────────── */
@@ -551,7 +555,7 @@ class Known_Providers {
 					'mc.yandex.ru',
 					'metrika.yandex.ru',
 					'cdn.jsdelivr.net/npm/yandex-metrica-watch',
-					'ym(',
+					"ym(document",
 					'Ya.Metrika',
 				),
 				'cookies'  => array( '_ym_uid', '_ym_d', '_ym_isad', '_ym_visorc', 'yandexuid', 'yabs-sid' ),
@@ -608,8 +612,11 @@ class Known_Providers {
 					'burst-cookieless',
 					'burst.min.js',
 					'burst_uid',
+					'burst-time-tracking-script',
+					'burst-tracking-script',
+					'window.burst',
 				),
-				'cookies'  => array( 'burst_uid' ),
+				'cookies'  => array( 'burst_uid', 'burst_*' ),
 			),
 
 			/* ── SlimStat Analytics ────────────────────────── */
@@ -632,6 +639,9 @@ class Known_Providers {
 				'patterns' => array(
 					'independent-analytics',
 					'iawp-',
+					'iawp-javascript',
+					'iawp-layout-javascript',
+					'window.IAWP',
 				),
 				'cookies'  => array(),
 			),
@@ -1102,7 +1112,7 @@ class Known_Providers {
 					'static.cloudflareinsights.com/beacon.min.js',
 					'cloudflareinsights.com',
 				),
-				'cookies'  => array( '__cflb', '__cfuid' ),
+				'cookies'  => array(),
 			),
 
 			/* ── New Relic ───────────────────────────────── */
@@ -1113,9 +1123,9 @@ class Known_Providers {
 					'js-agent.newrelic.com',
 					'bam.nr-data.net',
 					'NREUM',
-					'newrelic',
+					'newrelic.info',
 				),
-				'cookies'  => array( 'JSESSIONID' ),
+				'cookies'  => array(),
 			),
 
 			/* ── Sentry ──────────────────────────────────── */
@@ -1150,7 +1160,7 @@ class Known_Providers {
 					'woocommerce-google-analytics-integration',
 					'wcTracks',
 				),
-				'cookies'  => array( 'woocommerce_cart_hash', 'woocommerce_items_in_cart', 'wp_woocommerce_session_*' ),
+				'cookies'  => array(),
 			),
 
 			/* ── Trustpilot ──────────────────────────────── */
@@ -1299,8 +1309,6 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'elementor/assets/lib/share-link',
-					'elementor/assets/js/frontend',
-					'elementor-pro/assets/js',
 				),
 				'cookies'  => array(),
 			),
@@ -1756,66 +1764,6 @@ class Known_Providers {
 				'cookies'  => array( '__qca', 'mc' ),
 			),
 
-			/* ── Bing UET ────────────────────────────────── */
-			'bing_uet' => array(
-				'label'    => 'Bing UET',
-				'category' => 'marketing',
-				'patterns' => array(
-					'bat.bing.com',
-					'UET tag',
-					'uetTag',
-				),
-				'cookies'  => array( '_uetsid', '_uetsid_exp', '_uetvid', '_uetvid_exp', 'MUID' ),
-			),
-
-			/* ── Snap Pixel ──────────────────────────────── */
-			'snap_pixel' => array(
-				'label'    => 'Snap Pixel',
-				'category' => 'marketing',
-				'patterns' => array(
-					'sc-static.net/scevent.min.js',
-					'tr.snapchat.com',
-				),
-				'cookies'  => array( '_scid', '_scid_r', 'sc_at' ),
-			),
-
-			/* ── X/Twitter Pixel ─────────────────────────── */
-			'twitter_pixel' => array(
-				'label'    => 'X (Twitter) Pixel',
-				'category' => 'marketing',
-				'patterns' => array(
-					'static.ads-twitter.com',
-					't.co/i/adsct',
-					'analytics.twitter.com',
-				),
-				'cookies'  => array( 'personalization_id', 'guest_id', 'muc_ads' ),
-			),
-
-			/* ── Burst Statistics ────────────────────────── */
-			'burst_statistics' => array(
-				'label'    => 'Burst Statistics',
-				'category' => 'analytics',
-				'patterns' => array(
-					'burst-time-tracking-script',
-					'burst-tracking-script',
-					'burst_uid',
-					'window.burst',
-				),
-				'cookies'  => array( 'burst_*' ),
-			),
-
-			/* ── Independent Analytics ───────────────────── */
-			'independent_analytics' => array(
-				'label'    => 'Independent Analytics',
-				'category' => 'analytics',
-				'patterns' => array(
-					'iawp-javascript',
-					'iawp-layout-javascript',
-					'window.IAWP',
-				),
-				'cookies'  => array(),
-			),
-
 			/* ── Pixel Manager for WooCommerce ───────────── */
 			'pixel_manager_woo' => array(
 				'label'    => 'Pixel Manager for WooCommerce',
@@ -1838,6 +1786,68 @@ class Known_Providers {
 					'scripts.kissmetrics.com',
 				),
 				'cookies'  => array( 'km_ai', 'km_vs', 'km_ni' ),
+			),
+
+			/* ── Criteo ──────────────────────────────────── */
+			'criteo' => array(
+				'label'    => 'Criteo',
+				'category' => 'marketing',
+				'patterns' => array(
+					'static.criteo.net',
+					'dynamic.criteo.com',
+					'dis.criteo.com',
+					'sslwidget.criteo.com',
+					'criteo.com/js/',
+					'criteo_q',
+					'Criteo.events.push',
+				),
+				'cookies'  => array( 'cto_bundle', 'cto_bidid', 'cto_tld_test', 'cto_writetest', 'cto_lwid', 'criteo_write_test' ),
+			),
+
+			/* ── Adobe Analytics (Omniture) ──────────────── */
+			'adobe-analytics' => array(
+				'label'    => 'Adobe Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'adobedtm.com',
+					'omtrdc.net',
+					'demdex.net',
+					'2o7.net',
+					'assets.adobedtm.com',
+					'launch-',
+					's_code.js',
+					'AppMeasurement.js',
+					'AppMeasurement',
+					's.t()',
+				),
+				'cookies'  => array( 's_cc', 's_sq', 's_vi', 's_fid', 'AMCV_*', 'AMCVS_*', 's_ecid', 'demdex', 'dpm' ),
+			),
+
+			/* ── PostHog ─────────────────────────────────── */
+			'posthog' => array(
+				'label'    => 'PostHog',
+				'category' => 'analytics',
+				'patterns' => array(
+					'app.posthog.com',
+					'us.posthog.com',
+					'eu.posthog.com',
+					'posthog-js',
+					'posthog.init(',
+				),
+				'cookies'  => array( 'ph_*' ),
+			),
+
+			/* ── Contentsquare ───────────────────────────── */
+			'contentsquare' => array(
+				'label'    => 'Contentsquare',
+				'category' => 'analytics',
+				'patterns' => array(
+					't.contentsquare.net',
+					'contentsquare.com',
+					'contentsquare.net/tag',
+					'_uxa.push',
+				),
+				'cookies'  => array( '_cs_c', '_cs_id', '_cs_s', '_cs_mk', '_cs_same_site' ),
 			),
 		);
 	}

@@ -1161,7 +1161,7 @@ function _fazMutationObserver(mutations) {
 }
 
 function _fazUnblock() {
-    if (navigator.doNotTrack === 1) return;
+    if (navigator.doNotTrack === "1") return;
     const fazconsent = ref._fazGetFromStore("consent");
     if (
         _fazGetLaw() === "gdpr" &&
@@ -1214,12 +1214,13 @@ function _fazUnblockServerSide() {
             var category = script.getAttribute("data-faz-category");
             if (_fazIsCategoryToBeBlocked(category)) return;
             var clone = _fazCreateElementBackup.call(document, "script");
-            clone.type = "text/javascript";
+            var origType = script.getAttribute("data-faz-original-type");
+            clone.type = origType || "text/javascript";
             if (script.src) clone.src = script.src;
             else clone.textContent = script.textContent;
             for (var i = 0; i < script.attributes.length; i++) {
                 var attr = script.attributes[i];
-                if (attr.name === "type" || attr.name === "data-faz-category") continue;
+                if (attr.name === "type" || attr.name === "data-faz-category" || attr.name === "data-faz-original-type") continue;
                 clone.setAttribute(attr.name, attr.value);
             }
             script.parentNode.replaceChild(clone, script);
@@ -1270,11 +1271,13 @@ function _fazUnblockServerSide() {
             if (script.getAttribute("data-faz-loaded")) return;
             script.setAttribute("data-faz-loaded", "1");
             var clone = _fazCreateElementBackup.call(document, "script");
+            var origType = script.getAttribute("data-faz-original-type");
+            clone.type = origType || "text/javascript";
             if (script.src) clone.src = script.src;
             else clone.textContent = script.textContent;
             for (var i = 0; i < script.attributes.length; i++) {
                 var attr = script.attributes[i];
-                if (attr.name === "data-faz-waitfor" || attr.name === "data-faz-loaded") continue;
+                if (attr.name === "type" || attr.name === "data-faz-waitfor" || attr.name === "data-faz-loaded" || attr.name === "data-faz-original-type") continue;
                 clone.setAttribute(attr.name, attr.value);
             }
             script.parentNode.replaceChild(clone, script);
@@ -2067,6 +2070,11 @@ window._fazAcceptCategory = function (categorySlug) {
     for (const cat of _fazStore._categories) {
         if (cat.slug === categorySlug && !cat.isNecessary) {
             ref._fazSetInStore(cat.slug, "yes");
+            // Sync checkbox so _fazAcceptCookies("custom") reads the correct state.
+            var cb = document.getElementById("fazSwitch" + cat.slug);
+            if (cb) cb.checked = true;
+            var cbDirect = document.getElementById("fazCategoryDirect" + cat.slug);
+            if (cbDirect) cbDirect.checked = true;
         }
     }
     _fazAcceptCookies("custom");

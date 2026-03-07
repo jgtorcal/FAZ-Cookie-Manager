@@ -85,6 +85,14 @@ class Frontend {
 	 * @var array
 	 */
 	protected $providers = array();
+
+	/**
+	 * Per-request cache for blocked categories and provider map.
+	 *
+	 * @var array|null
+	 */
+	private $blocked_categories_cache = null;
+	private $provider_map_cache       = null;
 	/**
 	 * Initialize the class and set its properties.
 	 *
@@ -600,6 +608,9 @@ class Frontend {
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
 			return;
 		}
+		if ( ! $this->template ) {
+			return;
+		}
 		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
 			return;
 		}
@@ -823,10 +834,10 @@ class Frontend {
 	 * @return string HTML for the thumbnail background, or empty string.
 	 */
 	private function get_video_thumbnail_html( $attrs ) {
-		// YouTube: extract video ID from src.
+		// YouTube: extract video ID — use data-src to avoid third-party request before consent.
 		if ( preg_match( '/youtube(?:-nocookie)?\.com\/embed\/([a-zA-Z0-9_-]{11})/', $attrs, $yt ) ) {
 			$thumb_url = 'https://img.youtube.com/vi/' . $yt[1] . '/hqdefault.jpg';
-			return '<img class="faz-iframe-placeholder-thumb" src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
+			return '<img class="faz-iframe-placeholder-thumb" data-src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
 		}
 		return '';
 	}
@@ -907,9 +918,11 @@ class Frontend {
 			'wp-embed',
 		) );
 
-		$haystack = $attrs . ' ' . $content;
+		// Match against tag attributes only (src, id, class, etc.) to prevent
+		// tracking scripts from bypassing the block by including whitelist
+		// keywords in their inline content.
 		foreach ( $whitelist as $pattern ) {
-			if ( false !== stripos( $haystack, $pattern ) ) {
+			if ( false !== stripos( $attrs, $pattern ) ) {
 				return true;
 			}
 		}
@@ -923,6 +936,9 @@ class Frontend {
 	 * @return array Slugs of blocked categories.
 	 */
 	private function get_blocked_categories() {
+		if ( null !== $this->blocked_categories_cache ) {
+			return $this->blocked_categories_cache;
+		}
 		$consent = isset( $_COOKIE['fazcookie-consent'] ) ? sanitize_text_field( wp_unslash( $_COOKIE['fazcookie-consent'] ) ) : '';
 		$categories = \FazCookie\Admin\Modules\Cookies\Includes\Category_Controller::get_instance()->get_items();
 		$blocked = array();
@@ -948,6 +964,7 @@ class Frontend {
 				}
 			}
 		}
+		$this->blocked_categories_cache = $blocked;
 		return $blocked;
 	}
 
@@ -962,6 +979,9 @@ class Frontend {
 	 * @return array [ 'connect.facebook.net' => 'marketing', ... ]
 	 */
 	private function get_provider_category_map() {
+		if ( null !== $this->provider_map_cache ) {
+			return $this->provider_map_cache;
+		}
 		// Force cookie groups to be loaded so $this->providers is populated.
 		if ( empty( $this->providers ) ) {
 			$this->get_cookie_groups();
@@ -990,12 +1010,13 @@ class Frontend {
 		}
 
 		// 3. Admin custom blocking rules (Settings → Script Blocking).
+		// Custom rules CAN override built-in providers (admin intent takes priority).
 		$settings     = get_option( 'faz_settings', array() );
 		$custom_rules = isset( $settings['script_blocking']['custom_rules'] ) ? $settings['script_blocking']['custom_rules'] : array();
 		foreach ( $custom_rules as $rule ) {
 			$pattern  = isset( $rule['pattern'] ) ? $rule['pattern'] : '';
 			$category = isset( $rule['category'] ) ? $rule['category'] : '';
-			if ( ! empty( $pattern ) && ! empty( $category ) && ! isset( $map[ $pattern ] ) ) {
+			if ( ! empty( $pattern ) && ! empty( $category ) ) {
 				$map[ $pattern ] = $category;
 			}
 		}
@@ -1003,6 +1024,7 @@ class Frontend {
 		// 4. Developer filter (allows code-level custom rules).
 		$map = apply_filters( 'faz_blocking_rules', $map );
 
+		$this->provider_map_cache = $map;
 		return $map;
 	}
 
@@ -1056,8 +1078,14 @@ class Frontend {
 	 * @return string Modified attributes string.
 	 */
 	private function set_script_type_plain( $attrs ) {
-		if ( preg_match( '/type\s*=\s*["\'][^"\']*["\']/', $attrs ) ) {
-			return preg_replace( '/type\s*=\s*["\'][^"\']*["\']/', 'type="text/plain"', $attrs );
+		if ( preg_match( '/type\s*=\s*["\']([^"\']*)["\']/', $attrs, $tm ) ) {
+			$original = $tm[1];
+			$attrs    = preg_replace( '/type\s*=\s*["\'][^"\']*["\']/', 'type="text/plain"', $attrs );
+			// Preserve non-default types (e.g. "module") so JS can restore them.
+			if ( 'text/plain' !== $original && 'text/javascript' !== $original && '' !== $original ) {
+				$attrs .= ' data-faz-original-type="' . esc_attr( $original ) . '"';
+			}
+			return $attrs;
 		}
 		return $attrs . ' type="text/plain"';
 	}
@@ -1567,6 +1595,9 @@ class Frontend {
 		if ( is_admin() ) {
 			return $tag;
 		}
+		if ( ! $this->template ) {
+			return $tag;
+		}
 		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
 			return $tag;
 		}
@@ -1588,9 +1619,14 @@ class Frontend {
 			if ( false !== stripos( $handle, $pattern ) || false !== stripos( $src, $pattern ) || false !== stripos( $tag, $pattern ) ) {
 				$blocked = $this->get_blocked_categories();
 				if ( in_array( $category, $blocked, true ) ) {
-					// Replace type.
-					$tag = preg_replace( "/type\s*=\s*['\"]text\/javascript['\"]/", 'type="text/plain"', $tag );
-					if ( false === stripos( $tag, 'type=' ) ) {
+					// Replace any type attribute with text/plain, saving the original.
+					if ( preg_match( '/type\s*=\s*[\'"]([^\'"]*)[\'"]/', $tag, $type_match ) ) {
+						$original_type = $type_match[1];
+						$tag = preg_replace( '/type\s*=\s*[\'"][^\'"]*[\'"]/', 'type="text/plain"', $tag, 1 );
+						if ( 'text/plain' !== $original_type && 'text/javascript' !== $original_type ) {
+							$tag = str_replace( '<script ', '<script data-faz-original-type="' . esc_attr( $original_type ) . '" ', $tag );
+						}
+					} else {
 						$tag = str_replace( '<script ', '<script type="text/plain" ', $tag );
 					}
 					// Add category attribute.
@@ -1617,6 +1653,9 @@ class Frontend {
 	 */
 	public function filter_style_loader_tag( $tag, $handle, $href, $media ) {
 		if ( is_admin() ) {
+			return $tag;
+		}
+		if ( ! $this->template ) {
 			return $tag;
 		}
 		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
@@ -1660,6 +1699,9 @@ class Frontend {
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
 			return;
 		}
+		if ( ! $this->template ) {
+			return;
+		}
 		if ( true === faz_disable_banner() ) {
 			return;
 		}
@@ -1674,6 +1716,9 @@ class Frontend {
 			return;
 		}
 
+		$host   = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$domain = preg_replace( '/^www\./', '', $host );
+
 		foreach ( $_COOKIE as $name => $value ) {
 			foreach ( $cookie_map as $pattern => $category ) {
 				if ( ! in_array( $category, $blocked_categories, true ) ) {
@@ -1681,6 +1726,10 @@ class Frontend {
 				}
 				if ( $this->cookie_name_matches( $name, $pattern ) ) {
 					setcookie( $name, '', -1, '/' );
+					if ( $domain ) {
+						setcookie( $name, '', -1, '/', $domain );
+						setcookie( $name, '', -1, '/', '.' . $domain );
+					}
 					unset( $_COOKIE[ $name ] );
 					break;
 				}
@@ -1702,7 +1751,7 @@ class Frontend {
 		}
 		// Wildcard patterns: _ga_*, _pk_id.*, etc.
 		if ( false !== strpos( $pattern, '*' ) ) {
-			$regex = '/^' . str_replace( array( '.', '*' ), array( '\\.', '.*' ), $pattern ) . '$/';
+			$regex = '/^' . str_replace( '\\*', '.*', preg_quote( $pattern, '/' ) ) . '$/';
 			return (bool) preg_match( $regex, $name );
 		}
 		return false;
@@ -1721,6 +1770,9 @@ class Frontend {
 	 */
 	public function filter_content_blocking( $content ) {
 		if ( empty( $content ) || is_admin() ) {
+			return $content;
+		}
+		if ( ! $this->template ) {
 			return $content;
 		}
 		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
@@ -1779,6 +1831,9 @@ class Frontend {
 		if ( empty( $html ) || is_admin() ) {
 			return $html;
 		}
+		if ( ! $this->template ) {
+			return $html;
+		}
 		if ( true === faz_disable_banner() || $this->is_banner_disabled_by_settings() ) {
 			return $html;
 		}
@@ -1823,14 +1878,14 @@ class Frontend {
 			}
 		}
 
-		// Try to get video thumbnail.
+		// Try to get video thumbnail — use data-src to avoid third-party request before consent.
 		$thumbnail_html = '';
 		if ( preg_match( '/youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/)([a-zA-Z0-9_-]{11})/', $url, $yt ) ) {
 			$thumb_url = 'https://img.youtube.com/vi/' . $yt[1] . '/hqdefault.jpg';
-			$thumbnail_html = '<img class="faz-iframe-placeholder-thumb" src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
+			$thumbnail_html = '<img class="faz-iframe-placeholder-thumb" data-src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
 		} elseif ( preg_match( '/youtu\.be\/([a-zA-Z0-9_-]{11})/', $url, $yt ) ) {
 			$thumb_url = 'https://img.youtube.com/vi/' . $yt[1] . '/hqdefault.jpg';
-			$thumbnail_html = '<img class="faz-iframe-placeholder-thumb" src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
+			$thumbnail_html = '<img class="faz-iframe-placeholder-thumb" data-src="' . esc_url( $thumb_url ) . '" alt="" loading="lazy"/>';
 		}
 
 		// Neutralize the embed: wrap iframes, disable scripts.

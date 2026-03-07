@@ -406,7 +406,8 @@ class Activator {
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
 			return;
 		}
-		$rows = $wpdb->get_results( "SELECT banner_id, settings FROM {$table}" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix constant.
+		$rows = $wpdb->get_results( "SELECT banner_id, settings FROM `" . esc_sql( $table ) . "`" );
 		foreach ( $rows as $row ) {
 			$settings = json_decode( $row->settings, true );
 			if ( ! is_array( $settings ) ) {

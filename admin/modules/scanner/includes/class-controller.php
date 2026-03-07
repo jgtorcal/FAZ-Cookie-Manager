@@ -1030,7 +1030,7 @@ class Controller {
 			}
 			// Wildcard: '_ga_*' matches '_ga_ABC123'.
 			if ( false !== strpos( $pattern, '*' ) ) {
-				$regex = '/^' . str_replace( array( '.', '*' ), array( '\\.', '.*' ), $pattern ) . '$/';
+				$regex = '/^' . str_replace( '\\*', '.*', preg_quote( $pattern, '/' ) ) . '$/';
 				if ( preg_match( $regex, $name ) ) {
 					return $category;
 				}
