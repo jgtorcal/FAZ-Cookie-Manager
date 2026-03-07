@@ -1279,6 +1279,21 @@ function _fazUnblockServerSide() {
             }
             script.parentNode.replaceChild(clone, script);
         });
+
+    // 6. Social embeds (Facebook, Instagram, Twitter/X).
+    // Hidden elements with data-faz-category preceded by .faz-social-placeholder.
+    document.querySelectorAll('.faz-social-placeholder[data-faz-category]')
+        .forEach(function (placeholder) {
+            var cat = placeholder.getAttribute("data-faz-category");
+            if (_fazIsCategoryToBeBlocked(cat)) return;
+            // Show the hidden social element that follows the placeholder.
+            var next = placeholder.nextElementSibling;
+            if (next && next.getAttribute("data-faz-category") === cat) {
+                next.style.display = "";
+                next.removeAttribute("data-faz-category");
+            }
+            placeholder.remove();
+        });
 }
 
 function _fazAddProviderToList(node, cleanedHostname) {
