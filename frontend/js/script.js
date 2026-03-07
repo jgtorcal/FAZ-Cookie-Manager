@@ -1258,6 +1258,27 @@ function _fazUnblockServerSide() {
             el.href = el.getAttribute("data-faz-href");
             el.removeAttribute("data-faz-href");
         });
+
+    // 5. Deferred scripts with data-faz-waitfor (script dependency chains).
+    // Usage: <script data-faz-waitfor="analytics" src="..."> loads only after
+    // the "analytics" category is accepted. Useful for scripts that depend on
+    // a consent-blocked tracker (e.g. a GTM plugin that needs GTM loaded first).
+    document.querySelectorAll('script[data-faz-waitfor]')
+        .forEach(function (script) {
+            var waitCat = script.getAttribute("data-faz-waitfor");
+            if (_fazIsCategoryToBeBlocked(waitCat)) return;
+            if (script.getAttribute("data-faz-loaded")) return;
+            script.setAttribute("data-faz-loaded", "1");
+            var clone = _fazCreateElementBackup.call(document, "script");
+            if (script.src) clone.src = script.src;
+            else clone.textContent = script.textContent;
+            for (var i = 0; i < script.attributes.length; i++) {
+                var attr = script.attributes[i];
+                if (attr.name === "data-faz-waitfor" || attr.name === "data-faz-loaded") continue;
+                clone.setAttribute(attr.name, attr.value);
+            }
+            script.parentNode.replaceChild(clone, script);
+        });
 }
 
 function _fazAddProviderToList(node, cleanedHostname) {
@@ -1330,6 +1351,81 @@ function _fazShouldChangeType(element, src) {
         _fazShouldBlockProvider(src ? src : element.src)
     );
 }
+
+/**
+ * Network-level consent enforcement.
+ *
+ * Wraps navigator.sendBeacon, fetch, and XMLHttpRequest.open to block
+ * requests to known tracking endpoints when consent has not been given.
+ * This is a defense-in-depth layer: even scripts that loaded before
+ * the consent plugin can be prevented from phoning home.
+ */
+(function _fazNetworkInterceptors() {
+    /**
+     * Extract a clean hostname+path from a URL string for provider matching.
+     * Returns empty string on failure (non-blocking).
+     */
+    function _fazExtractEndpoint(url) {
+        if (!url || typeof url !== "string") return "";
+        try {
+            var full = url.startsWith("//") ? window.location.protocol + url : url;
+            if (!/^https?:\/\//i.test(full)) return "";
+            var u = new URL(full);
+            return _fazCleanHostName(u.hostname + u.pathname);
+        } catch (e) {
+            return "";
+        }
+    }
+
+    // --- sendBeacon ---
+    if (navigator.sendBeacon) {
+        var _fazOrigSendBeacon = navigator.sendBeacon.bind(navigator);
+        navigator.sendBeacon = function (url, data) {
+            var endpoint = _fazExtractEndpoint(url);
+            if (endpoint && _fazShouldBlockProvider(endpoint)) {
+                return true; // Pretend success — silently drop.
+            }
+            return _fazOrigSendBeacon(url, data);
+        };
+    }
+
+    // --- fetch ---
+    if (window.fetch) {
+        var _fazOrigFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+            var url = typeof input === "string" ? input : (input && input.url ? input.url : "");
+            var endpoint = _fazExtractEndpoint(url);
+            if (endpoint && _fazShouldBlockProvider(endpoint)) {
+                return Promise.resolve(new Response("", { status: 200, statusText: "Blocked by consent" }));
+            }
+            return _fazOrigFetch(input, init);
+        };
+    }
+
+    // --- XMLHttpRequest ---
+    var _fazOrigXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        var endpoint = _fazExtractEndpoint(url);
+        if (endpoint && _fazShouldBlockProvider(endpoint)) {
+            this._fazBlocked = true;
+        }
+        return _fazOrigXHROpen.apply(this, arguments);
+    };
+    var _fazOrigXHRSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (body) {
+        if (this._fazBlocked) {
+            Object.defineProperty(this, "status", { get: function () { return 200; } });
+            Object.defineProperty(this, "readyState", { get: function () { return 4; } });
+            Object.defineProperty(this, "responseText", { get: function () { return ""; } });
+            if (typeof this.onreadystatechange === "function") {
+                this.onreadystatechange();
+            }
+            this.dispatchEvent(new Event("load"));
+            return;
+        }
+        return _fazOrigXHRSend.apply(this, arguments);
+    };
+})();
 
 /**
  * Add readmore button to consent notice.
@@ -1459,9 +1555,58 @@ function _fazAfterConsent() {
     if (_fazGetLaw() === 'gdpr') _fazSetPreferenceCheckBoxStates(true);
     _fazUpdateVendorCheckboxStates();
 
+    // Clean up cookies from categories the user has not consented to.
+    _fazCleanupRevokedCookies();
+
+    // Re-run server-side unblocking for newly accepted categories.
+    _fazUnblockServerSide();
+
     if (_fazStore._bannerConfig.behaviours.reloadBannerOnAccept === true) {
         window.location.reload();
     }
+}
+
+/**
+ * Delete cookies belonging to categories the user has NOT consented to.
+ * Uses the _cookieCategoryMap provided by the server (Known Providers cookie map).
+ */
+function _fazCleanupRevokedCookies() {
+    var cookieMap = _fazStore._cookieCategoryMap;
+    if (!cookieMap || typeof cookieMap !== "object") return;
+
+    var currentCookies = document.cookie.split(";");
+    var domain = _fazStore._rootDomain || "";
+    var domainSuffix = domain ? ";domain=" + domain : "";
+
+    for (var i = 0; i < currentCookies.length; i++) {
+        var parts = currentCookies[i].split("=");
+        var cookieName = (parts[0] || "").trim();
+        if (!cookieName) continue;
+
+        for (var pattern in cookieMap) {
+            if (!cookieMap.hasOwnProperty(pattern)) continue;
+            var category = cookieMap[pattern];
+
+            if (!_fazIsCategoryToBeBlocked(category)) continue;
+
+            if (_fazCookieNameMatches(cookieName, pattern)) {
+                // Delete from all possible paths and domains.
+                document.cookie = cookieName + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                document.cookie = cookieName + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/" + domainSuffix;
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Check if a cookie name matches a pattern (supports * wildcard).
+ */
+function _fazCookieNameMatches(name, pattern) {
+    if (name === pattern) return true;
+    if (pattern.indexOf("*") === -1) return false;
+    var regex = new RegExp("^" + pattern.replace(/\./g, "\\.").replace(/\*/g, ".*") + "$");
+    return regex.test(name);
 }
 
 function _fazAttachNoticeStyles() {

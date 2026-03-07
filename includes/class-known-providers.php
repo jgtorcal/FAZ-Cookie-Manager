@@ -407,9 +407,10 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'disqus.com',
-					'disqus.com/embed.js',
+					'disquscdn.com',
+					'.disqus.com/embed.js',
 				),
-				'cookies'  => array( 'disqus_unique' ),
+				'cookies'  => array( 'disqus_unique', '__jid' ),
 			),
 
 			/* ── PayPal ───────────────────────────────────── */
@@ -426,12 +427,13 @@ class Known_Providers {
 
 			/* ── Spotify ──────────────────────────────────── */
 			'spotify' => array(
-				'label'    => 'Spotify Embed',
+				'label'    => 'Spotify',
 				'category' => 'functional',
 				'patterns' => array(
 					'open.spotify.com/embed',
+					'embed.spotify.com',
 				),
-				'cookies'  => array(),
+				'cookies'  => array( 'sp_t', 'sp_landing' ),
 			),
 
 			/* ── SoundCloud ───────────────────────────────── */
@@ -439,7 +441,9 @@ class Known_Providers {
 				'label'    => 'SoundCloud',
 				'category' => 'functional',
 				'patterns' => array(
-					'w.soundcloud.com/player',
+					'w.soundcloud.com',
+					'api.soundcloud.com',
+					'soundcloud.com/player',
 				),
 				'cookies'  => array(),
 			),
@@ -447,22 +451,25 @@ class Known_Providers {
 			/* ── Dailymotion ──────────────────────────────── */
 			'dailymotion' => array(
 				'label'    => 'Dailymotion',
-				'category' => 'functional',
+				'category' => 'marketing',
 				'patterns' => array(
-					'dailymotion.com/embed/video',
+					'dailymotion.com/embed',
+					'geo.dailymotion.com',
+					'api.dmcdn.net',
 				),
-				'cookies'  => array(),
+				'cookies'  => array( 'dmvk', 'ts', 'v1st', 'usprivacy' ),
 			),
 
 			/* ── Twitch ───────────────────────────────────── */
 			'twitch' => array(
 				'label'    => 'Twitch',
-				'category' => 'functional',
+				'category' => 'marketing',
 				'patterns' => array(
 					'player.twitch.tv',
 					'embed.twitch.tv',
+					'clips.twitch.tv',
 				),
-				'cookies'  => array(),
+				'cookies'  => array( 'twitch.lohp.countryCode' ),
 			),
 
 			/* ── AddThis ──────────────────────────────────── */
@@ -484,8 +491,10 @@ class Known_Providers {
 				'patterns' => array(
 					'sharethis.com',
 					'platform-api.sharethis.com',
+					'sharethis.com/js/',
+					'count-server.sharethis.com',
 				),
-				'cookies'  => array(),
+				'cookies'  => array( '__unam' ),
 			),
 
 			/* ── LiveChat ─────────────────────────────────── */
@@ -504,6 +513,8 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'assets.calendly.com',
+					'calendly.com/assets/external',
+					'calendly.com/widget',
 				),
 				'cookies'  => array(),
 			),
@@ -524,10 +535,12 @@ class Known_Providers {
 				'label'    => 'Clicky Analytics',
 				'category' => 'analytics',
 				'patterns' => array(
-					'static.getclicky.com/js',
+					'static.getclicky.com',
+					'in.getclicky.com',
 					'clicky_site_ids',
+					'clicky.init(',
 				),
-				'cookies'  => array( '_jsuid', 'clicky_olark' ),
+				'cookies'  => array( '_jsuid', 'clicky_olark', '_eventqueue', '_referrer_og', '_utm_og' ),
 			),
 
 			/* ── Yandex Metrica ────────────────────────────── */
@@ -535,10 +548,13 @@ class Known_Providers {
 				'label'    => 'Yandex Metrica',
 				'category' => 'analytics',
 				'patterns' => array(
-					'mc.yandex.ru/metrika',
-					'mc.yandex.ru/watch',
+					'mc.yandex.ru',
+					'metrika.yandex.ru',
+					'cdn.jsdelivr.net/npm/yandex-metrica-watch',
+					'ym(',
+					'Ya.Metrika',
 				),
-				'cookies'  => array( '_ym_uid', '_ym_d', '_ym_isad' ),
+				'cookies'  => array( '_ym_uid', '_ym_d', '_ym_isad', '_ym_visorc', 'yandexuid', 'yabs-sid' ),
 			),
 
 			/* ── PixelYourSite ─────────────────────────────── */
@@ -627,9 +643,11 @@ class Known_Providers {
 				'patterns' => array(
 					'cdn.taboola.com',
 					'trc.taboola.com',
+					'nr.taboola.com',
 					'_tfa.push',
+					'_taboola',
 				),
-				'cookies'  => array( 't_gid', 'taboola_usg' ),
+				'cookies'  => array( 't_gid', 't_pt_gid', 'taboola_usg' ),
 			),
 
 			/* ── Outbrain ─────────────────────────────────── */
@@ -646,11 +664,13 @@ class Known_Providers {
 			/* ── Intercom ─────────────────────────────────── */
 			'intercom' => array(
 				'label'    => 'Intercom',
-				'category' => 'functional',
+				'category' => 'marketing',
 				'patterns' => array(
 					'widget.intercom.io',
 					'js.intercomcdn.com',
+					'api-iam.intercom.io',
 					'Intercom(',
+					'intercomSettings',
 				),
 				'cookies'  => array( 'intercom-session-*', 'intercom-id-*' ),
 			),
@@ -658,12 +678,13 @@ class Known_Providers {
 			/* ── Drift ────────────────────────────────────── */
 			'drift' => array(
 				'label'    => 'Drift',
-				'category' => 'functional',
+				'category' => 'marketing',
 				'patterns' => array(
 					'js.driftt.com',
 					'drift.com',
+					'driftt.com',
 				),
-				'cookies'  => array( 'driftt_aid' ),
+				'cookies'  => array( 'drift_aid', 'drift_aaid', 'driftt_aid' ),
 			),
 
 			/* ── Crisp ────────────────────────────────────── */
@@ -672,6 +693,9 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'client.crisp.chat',
+					'settings.crisp.chat',
+					'$crisp',
+					'CRISP_WEBSITE_ID',
 				),
 				'cookies'  => array( 'crisp-client/*' ),
 			),
@@ -714,6 +738,7 @@ class Known_Providers {
 				'category' => 'analytics',
 				'patterns' => array(
 					'cdn.mouseflow.com',
+					'o2.mouseflow.com',
 					'mouseflow.com/projects/',
 				),
 				'cookies'  => array( 'mf_user', 'mf_*' ),
@@ -724,17 +749,20 @@ class Known_Providers {
 				'label'    => 'Crazy Egg',
 				'category' => 'analytics',
 				'patterns' => array(
-					'script.crazyegg.com/pages/',
+					'script.crazyegg.com',
+					'dnn506yrbagrg.cloudfront.net',
 				),
-				'cookies'  => array( 'is_returning' ),
+				'cookies'  => array( 'is_returning', '_ceir', '_CEFT', 'cebs' ),
 			),
 
-			/* ── Freshchat ────────────────────────────────── */
+			/* ── Freshchat / Freshdesk ────────────────────── */
 			'freshchat' => array(
-				'label'    => 'Freshchat',
+				'label'    => 'Freshdesk / Freshchat',
 				'category' => 'functional',
 				'patterns' => array(
 					'wchat.freshchat.com',
+					'snippets.freshdesk.com',
+					'assets.freshdesk.com',
 				),
 				'cookies'  => array(),
 			),
@@ -745,9 +773,11 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'static.zdassets.com',
+					'ekr.zdassets.com',
+					'zendesk.com/embeddable',
 					'zopim.com',
 				),
-				'cookies'  => array(),
+				'cookies'  => array( '__zlcmid', '__zldp', '__zlcprivacy' ),
 			),
 
 			/* ── Stripe ───────────────────────────────────── */
@@ -1267,6 +1297,8 @@ class Known_Providers {
 				'category' => 'functional',
 				'patterns' => array(
 					'elementor/assets/lib/share-link',
+					'elementor/assets/js/frontend',
+					'elementor-pro/assets/js',
 				),
 				'cookies'  => array(),
 			),
@@ -1560,6 +1592,201 @@ class Known_Providers {
 					'survey.fm',
 				),
 				'cookies'  => array(),
+			),
+
+			/* ── Baidu Analytics ─────────────────────────── */
+			'baidu_analytics' => array(
+				'label'    => 'Baidu Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'hm.baidu.com',
+					'tongji.baidu.com',
+				),
+				'cookies'  => array( 'Hm_lvt_*', 'Hm_lpvt_*', 'BAIDUID' ),
+			),
+
+			/* ── Customer.io ─────────────────────────────── */
+			'customerio' => array(
+				'label'    => 'Customer.io',
+				'category' => 'marketing',
+				'patterns' => array(
+					'assets.customer.io',
+					'track.customer.io',
+					'customerioforms.com',
+				),
+				'cookies'  => array( '_cio', '_cioanonid' ),
+			),
+
+			/* ── Drip ────────────────────────────────────── */
+			'drip' => array(
+				'label'    => 'Drip',
+				'category' => 'marketing',
+				'patterns' => array(
+					'tag.getdrip.com',
+					'api.getdrip.com',
+				),
+				'cookies'  => array( '_drip_client_*' ),
+			),
+
+			/* ── ConvertKit ──────────────────────────────── */
+			'convertkit' => array(
+				'label'    => 'ConvertKit',
+				'category' => 'marketing',
+				'patterns' => array(
+					'f.convertkit.com',
+					'convertkit.com/js',
+					'app.convertkit.com',
+				),
+				'cookies'  => array( 'ck_subscriber_id', '_ck_visitor' ),
+			),
+
+			/* ── Zoho (SalesIQ, Forms, etc.) ─────────────── */
+			'zoho' => array(
+				'label'    => 'Zoho',
+				'category' => 'marketing',
+				'patterns' => array(
+					'salesiq.zoho.com',
+					'js.zohostatic.com',
+					'css.zohostatic.com',
+					'zoho.com/salesiq',
+				),
+				'cookies'  => array( 'zsiqchat', 'zia_*' ),
+			),
+
+			/* ── WP Recipe Maker ─────────────────────────── */
+			'wp_recipe_maker' => array(
+				'label'    => 'WP Recipe Maker',
+				'category' => 'functional',
+				'patterns' => array(
+					'wp-recipe-maker/dist/',
+					'wprm-recipe-',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Google reCAPTCHA (v2 & v3) ──────────────── */
+			'recaptcha' => array(
+				'label'    => 'Google reCAPTCHA',
+				'category' => 'functional',
+				'patterns' => array(
+					'google.com/recaptcha',
+					'gstatic.com/recaptcha',
+					'recaptcha/api.js',
+					'recaptcha/enterprise.js',
+					'grecaptcha',
+				),
+				'cookies'  => array( '_GRECAPTCHA' ),
+			),
+
+			/* ── Wistia ──────────────────────────────────── */
+			'wistia' => array(
+				'label'    => 'Wistia',
+				'category' => 'marketing',
+				'patterns' => array(
+					'fast.wistia.com',
+					'fast.wistia.net',
+					'embedwistia-a.akamaihd.net',
+				),
+				'cookies'  => array( 'wistia' ),
+			),
+
+			/* ── Awin / Zanox ────────────────────────────── */
+			'awin' => array(
+				'label'    => 'Awin (Zanox)',
+				'category' => 'marketing',
+				'patterns' => array(
+					'dwin1.com',
+					'dwin2.com',
+					'awin1.com',
+				),
+				'cookies'  => array( 'aw*' ),
+			),
+
+			/* ── CJ Affiliate (Commission Junction) ──────── */
+			'cj_affiliate' => array(
+				'label'    => 'CJ Affiliate',
+				'category' => 'marketing',
+				'patterns' => array(
+					'emjcd.com',
+					'ftjcfx.com',
+					'tqlkg.com',
+					'anrdoezrs.net',
+					'dpbolvw.net',
+					'jdoqocy.com',
+					'kqzyfj.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Skimlinks ───────────────────────────────── */
+			'skimlinks' => array(
+				'label'    => 'Skimlinks',
+				'category' => 'marketing',
+				'patterns' => array(
+					's.skimresources.com',
+					'r.skimresources.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Google Publisher Tag (GPT / DFP ads) ────── */
+			'google_gpt' => array(
+				'label'    => 'Google Publisher Tag (GPT)',
+				'category' => 'marketing',
+				'patterns' => array(
+					'securepubads.g.doubleclick.net',
+					'pagead2.googlesyndication.com/tag',
+					'googletag.cmd.push',
+					'googletag.enableServices',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Quantcast ───────────────────────────────── */
+			'quantcast' => array(
+				'label'    => 'Quantcast',
+				'category' => 'marketing',
+				'patterns' => array(
+					'quantserve.com',
+					'quantcount.com',
+					'edge.quantserve.com',
+				),
+				'cookies'  => array( '__qca', 'mc' ),
+			),
+
+			/* ── Bing UET ────────────────────────────────── */
+			'bing_uet' => array(
+				'label'    => 'Bing UET',
+				'category' => 'marketing',
+				'patterns' => array(
+					'bat.bing.com',
+					'UET tag',
+					'uetTag',
+				),
+				'cookies'  => array( '_uetsid', '_uetsid_exp', '_uetvid', '_uetvid_exp', 'MUID' ),
+			),
+
+			/* ── Snap Pixel ──────────────────────────────── */
+			'snap_pixel' => array(
+				'label'    => 'Snap Pixel',
+				'category' => 'marketing',
+				'patterns' => array(
+					'sc-static.net/scevent.min.js',
+					'tr.snapchat.com',
+				),
+				'cookies'  => array( '_scid', '_scid_r', 'sc_at' ),
+			),
+
+			/* ── X/Twitter Pixel ─────────────────────────── */
+			'twitter_pixel' => array(
+				'label'    => 'X (Twitter) Pixel',
+				'category' => 'marketing',
+				'patterns' => array(
+					'static.ads-twitter.com',
+					't.co/i/adsct',
+					'analytics.twitter.com',
+				),
+				'cookies'  => array( 'personalization_id', 'guest_id', 'muc_ads' ),
 			),
 		);
 	}

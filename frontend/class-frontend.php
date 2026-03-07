@@ -483,6 +483,20 @@ class Frontend {
 		}
 		$store['_providersToBlock'] = $providers;
 
+		// Cookie-to-category map for client-side cookie cleanup on consent revocation.
+		$cookie_category_map = array();
+		$known_cookies = Known_Providers::get_cookie_map();
+		foreach ( $known_cookies as $cookie_pattern => $category ) {
+			if ( 'necessary' === $category ) {
+				continue;
+			}
+			if ( ! in_array( $category, $valid_categories, true ) ) {
+				continue;
+			}
+			$cookie_category_map[ $cookie_pattern ] = $category;
+		}
+		$store['_cookieCategoryMap'] = $cookie_category_map;
+
 		// IAB vendor data for preference center.
 		$iab_enabled = (bool) $this->settings->get( 'iab', 'enabled' );
 		$store['_iabEnabled'] = $iab_enabled;
@@ -651,6 +665,25 @@ class Frontend {
 				'#<link\b([^>]*rel\s*=\s*["\']stylesheet["\'][^>]*)/?>#is',
 				function ( $m ) use ( $providers, $blocked_categories ) {
 					return $this->process_link_tag( $m, $providers, $blocked_categories );
+				},
+				$html
+			);
+		}
+
+		// 5. Block <script data-faz-waitfor="category"> (deferred dependency scripts).
+		if ( false !== strpos( $html, 'data-faz-waitfor' ) ) {
+			$html = preg_replace_callback(
+				'#<script\b([^>]*data-faz-waitfor\s*=\s*["\']([^"\']+)["\'][^>]*)>(.*?)</script>#is',
+				function ( $m ) use ( $blocked_categories ) {
+					$attrs    = $m[1];
+					$wait_cat = $m[2];
+					$content  = $m[3];
+					if ( ! in_array( $wait_cat, $blocked_categories, true ) ) {
+						return $m[0]; // Category is allowed — let it run.
+					}
+					// Block: change type to text/plain so JS won't execute.
+					$new_attrs = $this->set_script_type_plain( $attrs );
+					return '<script' . $new_attrs . '>' . $content . '</script>';
 				},
 				$html
 			);
