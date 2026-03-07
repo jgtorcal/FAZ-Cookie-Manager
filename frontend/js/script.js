@@ -1225,13 +1225,20 @@ function _fazUnblockServerSide() {
             script.parentNode.replaceChild(clone, script);
         });
 
-    // 2. Iframes.
+    // 2. Iframes (may be inside placeholder wrappers).
     document.querySelectorAll('iframe[data-faz-src][data-faz-category]')
         .forEach(function (el) {
             var cat = el.getAttribute("data-faz-category");
             if (_fazIsCategoryToBeBlocked(cat)) return;
             el.src = el.getAttribute("data-faz-src");
             el.removeAttribute("data-faz-src");
+            el.style.display = "";
+            // Remove placeholder wrapper if present.
+            var placeholder = el.closest('.faz-iframe-placeholder');
+            if (placeholder) {
+                placeholder.parentNode.insertBefore(el, placeholder);
+                placeholder.remove();
+            }
         });
 
     // 3. Images (tracking pixels inside noscript tags that JS can see).
@@ -1892,6 +1899,21 @@ function _fazSaveVendorConsent(choice) {
     const secure = location.protocol === 'https:' ? ';Secure' : '';
     document.cookie = 'fazVendorConsent=' + payload + ';expires=' + date.toUTCString() + ';path=/' + domain + ';SameSite=Lax' + secure;
 }
+
+/**
+ * Accept a single consent category programmatically (used by iframe placeholders).
+ */
+window._fazAcceptCategory = function (categorySlug) {
+    for (const cat of _fazStore._categories) {
+        if (cat.slug === categorySlug && !cat.isNecessary) {
+            ref._fazSetInStore(cat.slug, "yes");
+        }
+    }
+    _fazAcceptCookies("custom");
+    _fazRemoveBanner();
+    _fazHidePreferenceCenter();
+    _fazAfterConsent();
+};
 
 window.getFazConsent = function () {
     const cookieConsent = {

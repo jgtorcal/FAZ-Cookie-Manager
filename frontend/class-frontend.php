@@ -312,7 +312,14 @@ class Frontend {
 		if ( $this->is_banner_disabled_by_settings() ) {
 			return;
 		}
-		echo '<style id="faz-style-inline">[data-faz-tag]{visibility:hidden;}</style>';
+		echo '<style id="faz-style-inline">[data-faz-tag]{visibility:hidden;}'
+			. '.faz-iframe-placeholder{position:relative;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;min-height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden}'
+			. '.faz-iframe-placeholder-inner{text-align:center;padding:32px 24px;color:#555;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}'
+			. '.faz-iframe-placeholder-inner svg{color:#999;margin-bottom:12px}'
+			. '.faz-iframe-placeholder-inner p{margin:0 0 16px;font-size:14px;line-height:1.5}'
+			. '.faz-iframe-placeholder-btn{display:inline-block;padding:10px 24px;background:#1863DC;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:background .2s}'
+			. '.faz-iframe-placeholder-btn:hover{background:#1352b5}'
+			. '</style>';
 	}
 	/**
 	 * Load active banner.
@@ -709,12 +716,51 @@ class Frontend {
 		// Rename src → data-faz-src.
 		$new_attrs = preg_replace( '/\bsrc\s*=\s*/', 'data-faz-src=', $attrs, 1 );
 		$new_attrs .= ' data-faz-category="' . esc_attr( $matched_category ) . '"';
+		$new_attrs .= ' style="display:none"';
 
 		$inner = isset( $m[2] ) ? $m[2] : '';
-		if ( isset( $m[2] ) ) {
-			return '<iframe' . $new_attrs . '>' . $inner . '</iframe>';
+		$blocked_iframe = isset( $m[2] )
+			? '<iframe' . $new_attrs . '>' . $inner . '</iframe>'
+			: '<iframe' . $new_attrs . '/>';
+
+		// Detect the service label for the placeholder.
+		$service_label = $this->get_service_label_from_attrs( $attrs );
+
+		// Build placeholder.
+		$placeholder = '<div class="faz-iframe-placeholder" data-faz-category="' . esc_attr( $matched_category ) . '">'
+			. '<div class="faz-iframe-placeholder-inner">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>'
+			. '<p>' . esc_html( sprintf(
+				/* translators: %s: service name (e.g. "YouTube", "Google Maps") */
+				__( 'This content is blocked because %s cookies have not been accepted.', 'faz-cookie-manager' ),
+				$service_label ? $service_label : $matched_category
+			) ) . '</p>'
+			. '<button class="faz-iframe-placeholder-btn" onclick="(function(b){var p=b.closest(\'.faz-iframe-placeholder\');var cat=p.getAttribute(\'data-faz-category\');if(window._fazAcceptCategory){window._fazAcceptCategory(cat)}else{var el=document.querySelector(\'[data-faz-action=revisit-consent]\');if(el)el.click()}})(this)">'
+			. esc_html__( 'Accept cookies', 'faz-cookie-manager' )
+			. '</button>'
+			. '</div>'
+			. $blocked_iframe
+			. '</div>';
+
+		return $placeholder;
+	}
+
+	/**
+	 * Try to determine the service label from iframe attributes.
+	 *
+	 * @param string $attrs Iframe attribute string.
+	 * @return string|false Service label or false.
+	 */
+	private function get_service_label_from_attrs( $attrs ) {
+		$all = Known_Providers::get_all();
+		foreach ( $all as $service ) {
+			foreach ( $service['patterns'] as $pattern ) {
+				if ( false !== stripos( $attrs, $pattern ) ) {
+					return $service['label'];
+				}
+			}
 		}
-		return '<iframe' . $new_attrs . '/>';
+		return false;
 	}
 
 	/**

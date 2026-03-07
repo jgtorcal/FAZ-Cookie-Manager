@@ -747,6 +747,559 @@ class Known_Providers {
 				),
 				'cookies'  => array( '__stripe_mid', '__stripe_sid' ),
 			),
+
+			/* ── Tawk.to ──────────────────────────────────── */
+			'tawkto' => array(
+				'label'    => 'Tawk.to',
+				'category' => 'functional',
+				'patterns' => array(
+					'embed.tawk.to',
+					'va.tawk.to',
+					'Tawk_API',
+					'Tawk_LoadStart',
+				),
+				'cookies'  => array( 'TawkConnectionTime', '__tawkuuid', 'tawk-*' ),
+			),
+
+			/* ── Olark ───────────────────────────────────── */
+			'olark' => array(
+				'label'    => 'Olark',
+				'category' => 'functional',
+				'patterns' => array(
+					'static.olark.com',
+					'olark.com/jw',
+					'olark.identify',
+				),
+				'cookies'  => array( 'hblid', 'olfsk', 'wcsid', '_okglobalid_*' ),
+			),
+
+			/* ── Smartlook ───────────────────────────────── */
+			'smartlook' => array(
+				'label'    => 'Smartlook',
+				'category' => 'analytics',
+				'patterns' => array(
+					'rec.smartlook.com',
+					'web-sdk.smartlook.com',
+					'smartlook(',
+				),
+				'cookies'  => array( 'SL_C_*', 'SL_L_*' ),
+			),
+
+			/* ── FullStory ───────────────────────────────── */
+			'fullstory' => array(
+				'label'    => 'FullStory',
+				'category' => 'analytics',
+				'patterns' => array(
+					'fullstory.com/s/fs.js',
+					'edge.fullstory.com',
+					'rs.fullstory.com',
+					'_fs_namespace',
+					"FS.identify(",
+				),
+				'cookies'  => array( '_fs_uid', 'fs_uid' ),
+			),
+
+			/* ── LogRocket ───────────────────────────────── */
+			'logrocket' => array(
+				'label'    => 'LogRocket',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.logrocket.io',
+					'cdn.lr-ingest.io',
+					'cdn.lr-in.com',
+					'LogRocket.init(',
+				),
+				'cookies'  => array( '_lr_tabs_*', '_lr_env_*', 'LogRocket' ),
+			),
+
+			/* ── Heap Analytics ───────────────────────────── */
+			'heap' => array(
+				'label'    => 'Heap Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.heapanalytics.com',
+					'heapanalytics.com/js/',
+					'heap.load(',
+				),
+				'cookies'  => array( '_hp2_id.*', '_hp2_ses_props.*' ),
+			),
+
+			/* ── Mixpanel ────────────────────────────────── */
+			'mixpanel' => array(
+				'label'    => 'Mixpanel',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.mxpnl.com',
+					'api-js.mixpanel.com',
+					'api.mixpanel.com',
+					'mixpanel.init(',
+					'mixpanel.track(',
+				),
+				'cookies'  => array( 'mp_*_mixpanel' ),
+			),
+
+			/* ── Amplitude ───────────────────────────────── */
+			'amplitude' => array(
+				'label'    => 'Amplitude',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.amplitude.com',
+					'api.amplitude.com',
+					'amplitude.getInstance(',
+				),
+				'cookies'  => array( 'amplitude_id_*' ),
+			),
+
+			/* ── Segment ─────────────────────────────────── */
+			'segment' => array(
+				'label'    => 'Segment',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.segment.com/analytics.js',
+					'cdn.segment.io',
+					'api.segment.io',
+					'analytics.load(',
+					'analytics.track(',
+				),
+				'cookies'  => array( 'ajs_anonymous_id', 'ajs_user_id', 'ajs_group_id' ),
+			),
+
+			/* ── Plausible Analytics ──────────────────────── */
+			'plausible' => array(
+				'label'    => 'Plausible Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'plausible.io/js/',
+					'plausible.io/api/event',
+					'plausible-analytics',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Fathom Analytics ─────────────────────────── */
+			'fathom' => array(
+				'label'    => 'Fathom Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.usefathom.com',
+					'usefathom.com/script.js',
+					'fathom-analytics',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Jetpack Stats / WordPress.com Stats ──────── */
+			'jetpack-stats' => array(
+				'label'    => 'Jetpack Stats',
+				'category' => 'analytics',
+				'patterns' => array(
+					'pixel.wp.com',
+					'stats.wp.com',
+					'jetpack_stats',
+					'stats.wp.com/e-',
+					'stats.wp.com/w.js',
+				),
+				'cookies'  => array( 'tk_ai', 'tk_qs', 'tk_or' ),
+			),
+
+			/* ── Google Optimize ──────────────────────────── */
+			'google-optimize' => array(
+				'label'    => 'Google Optimize',
+				'category' => 'analytics',
+				'patterns' => array(
+					'googleoptimize.com/optimize.js',
+					'google-optimize',
+				),
+				'cookies'  => array( '_gaexp', '_opt_awcid', '_opt_awmid', '_opt_awgid', '_opt_utmc' ),
+			),
+
+			/* ── VWO (Visual Website Optimizer) ───────────── */
+			'vwo' => array(
+				'label'    => 'VWO',
+				'category' => 'analytics',
+				'patterns' => array(
+					'dev.visualwebsiteoptimizer.com',
+					'wingify.com',
+					'vwo_code',
+					'VWO.push(',
+				),
+				'cookies'  => array( '_vis_opt_*', '_vwo_uuid*', '_vwo_ds', '_vwo_sn' ),
+			),
+
+			/* ── Convert.com ─────────────────────────────── */
+			'convert' => array(
+				'label'    => 'Convert',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn-3.convertexperiments.com',
+					'convert.com/js/',
+				),
+				'cookies'  => array( '_conv_v', '_conv_s', '_conv_r' ),
+			),
+
+			/* ── Pendo ───────────────────────────────────── */
+			'pendo' => array(
+				'label'    => 'Pendo',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.pendo.io',
+					'pendo.io/agent/',
+					'pendo.initialize(',
+				),
+				'cookies'  => array( '_pendo_*' ),
+			),
+
+			/* ── OptinMonster ────────────────────────────── */
+			'optinmonster' => array(
+				'label'    => 'OptinMonster',
+				'category' => 'marketing',
+				'patterns' => array(
+					'a.optinmonster.com',
+					'optinmonster',
+					'api.opmnstr.com',
+					'optinmonster-',
+				),
+				'cookies'  => array( 'om-*' ),
+			),
+
+			/* ── Sumo ────────────────────────────────────── */
+			'sumo' => array(
+				'label'    => 'Sumo',
+				'category' => 'marketing',
+				'patterns' => array(
+					'sumo.com/sumo.js',
+					'load.sumo.com',
+					'load.sumome.com',
+				),
+				'cookies'  => array( '__smToken', '__smListBuilderToken' ),
+			),
+
+			/* ── Hello Bar ───────────────────────────────── */
+			'hellobar' => array(
+				'label'    => 'Hello Bar',
+				'category' => 'marketing',
+				'patterns' => array(
+					'my.hellobar.com',
+					'cdn.hellobar.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── AddToAny ────────────────────────────────── */
+			'addtoany' => array(
+				'label'    => 'AddToAny',
+				'category' => 'functional',
+				'patterns' => array(
+					'static.addtoany.com',
+					'addtoany.com/menu',
+					'a2a_config',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Mailchimp for WP ────────────────────────── */
+			'mailchimp' => array(
+				'label'    => 'Mailchimp',
+				'category' => 'marketing',
+				'patterns' => array(
+					'chimpstatic.com',
+					'list-manage.com',
+					'mc.us',
+					'mailchimp-for-wp',
+					'mc4wp',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Gravatar ────────────────────────────────── */
+			'gravatar' => array(
+				'label'    => 'Gravatar',
+				'category' => 'functional',
+				'patterns' => array(
+					'gravatar.com/avatar',
+					'secure.gravatar.com',
+					's.gravatar.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Google AdSense ──────────────────────────── */
+			'google-adsense' => array(
+				'label'    => 'Google AdSense',
+				'category' => 'marketing',
+				'patterns' => array(
+					'pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+					'adsbygoogle',
+					'adsbygoogle.push(',
+					'google_ad_client',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Amazon Associates / Affiliate ───────────── */
+			'amazon' => array(
+				'label'    => 'Amazon',
+				'category' => 'marketing',
+				'patterns' => array(
+					'amazon-adsystem.com',
+					'assoc-amazon.com',
+					'rcm-na.amazon-adsystem.com',
+					'ws-na.amazon-adsystem.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Cloudflare Web Analytics ────────────────── */
+			'cloudflare-analytics' => array(
+				'label'    => 'Cloudflare Web Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'static.cloudflareinsights.com/beacon.min.js',
+					'cloudflareinsights.com',
+				),
+				'cookies'  => array( '__cflb', '__cfuid' ),
+			),
+
+			/* ── New Relic ───────────────────────────────── */
+			'newrelic' => array(
+				'label'    => 'New Relic',
+				'category' => 'analytics',
+				'patterns' => array(
+					'js-agent.newrelic.com',
+					'bam.nr-data.net',
+					'NREUM',
+					'newrelic',
+				),
+				'cookies'  => array( 'JSESSIONID' ),
+			),
+
+			/* ── Sentry ──────────────────────────────────── */
+			'sentry' => array(
+				'label'    => 'Sentry',
+				'category' => 'functional',
+				'patterns' => array(
+					'browser.sentry-cdn.com',
+					'sentry.io/api/',
+					'Sentry.init(',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Cookiebot (competitor) ──────────────────── */
+			'cookiebot' => array(
+				'label'    => 'Cookiebot',
+				'category' => 'functional',
+				'patterns' => array(
+					'consent.cookiebot.com',
+					'consentcdn.cookiebot.com',
+				),
+				'cookies'  => array( 'CookieConsent', 'CookieConsentBulkTicket' ),
+			),
+
+			/* ── WooCommerce built-in analytics ──────────── */
+			'woocommerce' => array(
+				'label'    => 'WooCommerce',
+				'category' => 'analytics',
+				'patterns' => array(
+					'wc-tracks',
+					'woocommerce-google-analytics-integration',
+					'wcTracks',
+				),
+				'cookies'  => array( 'woocommerce_cart_hash', 'woocommerce_items_in_cart', 'wp_woocommerce_session_*' ),
+			),
+
+			/* ── Trustpilot ──────────────────────────────── */
+			'trustpilot' => array(
+				'label'    => 'Trustpilot',
+				'category' => 'marketing',
+				'patterns' => array(
+					'widget.trustpilot.com',
+					'invitejs.trustpilot.com',
+					'tp.srtk.net',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Typeform ────────────────────────────────── */
+			'typeform' => array(
+				'label'    => 'Typeform',
+				'category' => 'functional',
+				'patterns' => array(
+					'embed.typeform.com',
+					'renderer.typeform.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── JivoChat ────────────────────────────────── */
+			'jivochat' => array(
+				'label'    => 'JivoChat',
+				'category' => 'functional',
+				'patterns' => array(
+					'code.jivosite.com',
+					'jivosite.com/widget',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Usercentrics (competitor) ────────────────── */
+			'usercentrics' => array(
+				'label'    => 'Usercentrics',
+				'category' => 'functional',
+				'patterns' => array(
+					'app.usercentrics.eu',
+					'usercentrics.eu/sdk',
+				),
+				'cookies'  => array( 'uc_settings', 'uc_user_interaction' ),
+			),
+
+			/* ── OneTrust (competitor) ────────────────────── */
+			'onetrust' => array(
+				'label'    => 'OneTrust',
+				'category' => 'functional',
+				'patterns' => array(
+					'cdn.cookielaw.org',
+					'optanon.blob.core.windows.net',
+					'cookie-cdn.cookiepro.com',
+					'OptanonConsent',
+				),
+				'cookies'  => array( 'OptanonConsent', 'OptanonAlertBoxClosed' ),
+			),
+
+			/* ── Matomo Tag Manager ──────────────────────── */
+			'matomo-tag-manager' => array(
+				'label'    => 'Matomo Tag Manager',
+				'category' => 'analytics',
+				'patterns' => array(
+					'cdn.matomo.cloud/container_',
+					'MatomoTagManager',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Reddit Pixel ────────────────────────────── */
+			'reddit' => array(
+				'label'    => 'Reddit Pixel',
+				'category' => 'marketing',
+				'patterns' => array(
+					'www.redditstatic.com/ads/',
+					'rdt(',
+					'alb.reddit.com',
+				),
+				'cookies'  => array( '_rdt_uuid' ),
+			),
+
+			/* ── Quora Pixel ─────────────────────────────── */
+			'quora' => array(
+				'label'    => 'Quora Pixel',
+				'category' => 'marketing',
+				'patterns' => array(
+					'a.quora.com/qevents.js',
+					'qp(',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Pardot / Salesforce ─────────────────────── */
+			'pardot' => array(
+				'label'    => 'Pardot (Salesforce)',
+				'category' => 'marketing',
+				'patterns' => array(
+					'pi.pardot.com',
+					'pardot.com/pd.js',
+					'go.pardot.com',
+				),
+				'cookies'  => array( 'pardot', 'visitor_id*-hash' ),
+			),
+
+			/* ── Marketo ─────────────────────────────────── */
+			'marketo' => array(
+				'label'    => 'Marketo',
+				'category' => 'marketing',
+				'patterns' => array(
+					'munchkin.marketo.net',
+					'Munchkin.init(',
+				),
+				'cookies'  => array( '_mkto_trk' ),
+			),
+
+			/* ── ActiveCampaign ──────────────────────────── */
+			'activecampaign' => array(
+				'label'    => 'ActiveCampaign',
+				'category' => 'marketing',
+				'patterns' => array(
+					'trackcmp.net',
+					'actcampaign.com',
+					'activehosted.com/f/embed.php',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Klaviyo ─────────────────────────────────── */
+			'klaviyo' => array(
+				'label'    => 'Klaviyo',
+				'category' => 'marketing',
+				'patterns' => array(
+					'static.klaviyo.com',
+					'a.klaviyo.com',
+					'klaviyo.js',
+					'_learnq.push(',
+				),
+				'cookies'  => array( '__kla_id' ),
+			),
+
+			/* ── Elementor (external embeds) ─────────────── */
+			'elementor' => array(
+				'label'    => 'Elementor',
+				'category' => 'functional',
+				'patterns' => array(
+					'elementor/assets/lib/share-link',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── WPForms ─────────────────────────────────── */
+			'wpforms' => array(
+				'label'    => 'WPForms',
+				'category' => 'functional',
+				'patterns' => array(
+					'wpforms-recaptcha',
+					'wpforms-hcaptcha',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── hCaptcha ────────────────────────────────── */
+			'hcaptcha' => array(
+				'label'    => 'hCaptcha',
+				'category' => 'functional',
+				'patterns' => array(
+					'hcaptcha.com/1/api.js',
+					'js.hcaptcha.com',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Cloudflare Turnstile ────────────────────── */
+			'cloudflare-turnstile' => array(
+				'label'    => 'Cloudflare Turnstile',
+				'category' => 'functional',
+				'patterns' => array(
+					'challenges.cloudflare.com/turnstile',
+				),
+				'cookies'  => array( 'cf_clearance' ),
+			),
+
+			/* ── Wordfence ───────────────────────────────── */
+			'wordfence' => array(
+				'label'    => 'Wordfence',
+				'category' => 'functional',
+				'patterns' => array(
+					'wordfence/assets/js/',
+					'wfLogHumanRan',
+				),
+				'cookies'  => array( 'wfvt_*' ),
+			),
 		);
 	}
 
