@@ -1036,6 +1036,8 @@ class Known_Providers {
 					'static.addtoany.com',
 					'addtoany.com/menu',
 					'a2a_config',
+					'addtoany-core',
+					'addtoany-jquery',
 				),
 				'cookies'  => array(),
 			),
@@ -1787,6 +1789,55 @@ class Known_Providers {
 					'analytics.twitter.com',
 				),
 				'cookies'  => array( 'personalization_id', 'guest_id', 'muc_ads' ),
+			),
+
+			/* ── Burst Statistics ────────────────────────── */
+			'burst_statistics' => array(
+				'label'    => 'Burst Statistics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'burst-time-tracking-script',
+					'burst-tracking-script',
+					'burst_uid',
+					'window.burst',
+				),
+				'cookies'  => array( 'burst_*' ),
+			),
+
+			/* ── Independent Analytics ───────────────────── */
+			'independent_analytics' => array(
+				'label'    => 'Independent Analytics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'iawp-javascript',
+					'iawp-layout-javascript',
+					'window.IAWP',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Pixel Manager for WooCommerce ───────────── */
+			'pixel_manager_woo' => array(
+				'label'    => 'Pixel Manager for WooCommerce',
+				'category' => 'marketing',
+				'patterns' => array(
+					'wpm-frontend',
+					'window.wpm',
+					'wpmDataLayer',
+				),
+				'cookies'  => array(),
+			),
+
+			/* ── Kissmetrics ─────────────────────────────── */
+			'kissmetrics' => array(
+				'label'    => 'Kissmetrics',
+				'category' => 'analytics',
+				'patterns' => array(
+					'i.kissmetrics.com',
+					'_kmq',
+					'scripts.kissmetrics.com',
+				),
+				'cookies'  => array( 'km_ai', 'km_vs', 'km_ni' ),
 			),
 		);
 	}
