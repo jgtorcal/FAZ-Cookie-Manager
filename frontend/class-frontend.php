@@ -989,11 +989,18 @@ class Frontend {
 			}
 		}
 
-		// 3. Custom rules via filter (allows developers to add their own).
-		// Example: add_filter( 'faz_blocking_rules', function( $rules ) {
-		//     $rules['custom-tracker.com/script.js'] = 'marketing';
-		//     return $rules;
-		// });
+		// 3. Admin custom blocking rules (Settings → Script Blocking).
+		$settings     = get_option( 'faz_settings', array() );
+		$custom_rules = isset( $settings['script_blocking']['custom_rules'] ) ? $settings['script_blocking']['custom_rules'] : array();
+		foreach ( $custom_rules as $rule ) {
+			$pattern  = isset( $rule['pattern'] ) ? $rule['pattern'] : '';
+			$category = isset( $rule['category'] ) ? $rule['category'] : '';
+			if ( ! empty( $pattern ) && ! empty( $category ) && ! isset( $map[ $pattern ] ) ) {
+				$map[ $pattern ] = $category;
+			}
+		}
+
+		// 4. Developer filter (allows code-level custom rules).
 		$map = apply_filters( 'faz_blocking_rules', $map );
 
 		return $map;
