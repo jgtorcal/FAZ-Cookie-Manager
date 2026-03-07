@@ -254,8 +254,8 @@ class Api extends Rest_Controller {
 			}
 
 			// Auto-select all vendors if none have been selected yet.
-			$existing_selected = get_option( 'faz_gvl_selected_vendors', array() );
-			if ( empty( $existing_selected ) ) {
+			$existing_selected = get_option( 'faz_gvl_selected_vendors', null );
+			if ( null === $existing_selected ) {
 				$all_vendors = $gvl->get_vendors();
 				if ( ! empty( $all_vendors ) ) {
 					$all_ids = array_map( 'absint', array_keys( $all_vendors ) );

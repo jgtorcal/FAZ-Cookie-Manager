@@ -748,6 +748,10 @@ class Frontend {
 		if ( false !== strpos( $attrs, 'data-fazcookie' ) ) {
 			return $full;
 		}
+		// Skip non-executable script types (structured data, templates, etc.).
+		if ( preg_match( '/type\s*=\s*["\'](?:application\/(?:ld\+json|json)|text\/(?:template|html)|importmap)["\']/', $attrs ) ) {
+			return $full;
+		}
 
 		$matched_category = $this->match_script_to_provider( $attrs, $content, $providers );
 		if ( ! $matched_category || ! in_array( $matched_category, $blocked_categories, true ) ) {
@@ -927,7 +931,10 @@ class Frontend {
 			'fazBannerTemplate',
 			'wp-includes/',
 			'wp-admin/',
-			'jquery',
+			'jquery.min.js',
+			'jquery.js',
+			'jquery-core',
+			'jquery-migrate',
 			'wp-embed',
 		) );
 

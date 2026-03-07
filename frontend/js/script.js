@@ -951,6 +951,15 @@ function _fazActionClose() {
  * @param {string} choice  Type of consent.
  */
 function _fazAcceptCookies(choice = "all") {
+    // Snapshot accepted categories before updating consent, so _fazAfterConsent
+    // can detect revocations (executed JS cannot be unloaded — needs page reload).
+    _fazCategoriesBeforeConsent = [];
+    var _cats = _fazStore._categories || [];
+    for (var _ci = 0; _ci < _cats.length; _ci++) {
+        if (_cats[_ci].slug !== 'necessary' && !_fazIsCategoryToBeBlocked(_cats[_ci].slug)) {
+            _fazCategoriesBeforeConsent.push(_cats[_ci].slug);
+        }
+    }
     const activeLaw = _fazGetLaw();
     const ccpaCheckBoxValue = _fazFindCheckBoxValue();
 
@@ -1198,6 +1207,19 @@ function _fazUnblock() {
 }
 
 /**
+ * Check if a URL has a safe scheme (http, https, relative, or protocol-relative).
+ * Blocks dangerous schemes like javascript: and data:.
+ */
+function _fazIsAllowedScheme(url) {
+    if (!url) return false;
+    var colonPos = url.indexOf(':');
+    if (colonPos < 0) return true;
+    if (url.indexOf('//') === 0) return true;
+    var scheme = url.substring(0, colonPos).toLowerCase();
+    return scheme === 'http' || scheme === 'https';
+}
+
+/**
  * Re-enable resources that were blocked server-side via PHP output buffering.
  *
  * Handles four element types:
@@ -1215,13 +1237,14 @@ function _fazUnblockServerSide() {
             var clone = _fazCreateElementBackup.call(document, "script");
             var origType = script.getAttribute("data-faz-original-type");
             clone.type = origType || "text/javascript";
-            if (script.src) clone.src = script.src;
-            else clone.textContent = script.textContent;
+            // Copy attributes before src so integrity/crossorigin/nonce are set for SRI/CSP.
             for (var i = 0; i < script.attributes.length; i++) {
                 var attr = script.attributes[i];
-                if (attr.name === "type" || attr.name === "data-faz-category" || attr.name === "data-faz-original-type") continue;
+                if (attr.name === "type" || attr.name === "src" || attr.name === "data-faz-category" || attr.name === "data-faz-original-type") continue;
                 clone.setAttribute(attr.name, attr.value);
             }
+            if (script.src) clone.src = script.src;
+            else clone.textContent = script.textContent;
             script.parentNode.replaceChild(clone, script);
         });
 
@@ -1230,7 +1253,9 @@ function _fazUnblockServerSide() {
         .forEach(function (el) {
             var cat = el.getAttribute("data-faz-category");
             if (_fazIsCategoryToBeBlocked(cat)) return;
-            el.src = el.getAttribute("data-faz-src");
+            var fazSrc = el.getAttribute("data-faz-src");
+            if (!_fazIsAllowedScheme(fazSrc)) return;
+            el.src = fazSrc;
             el.removeAttribute("data-faz-src");
             el.style.display = "";
             // Remove placeholder wrapper if present.
@@ -1246,7 +1271,9 @@ function _fazUnblockServerSide() {
         .forEach(function (el) {
             var cat = el.getAttribute("data-faz-category");
             if (_fazIsCategoryToBeBlocked(cat)) return;
-            el.src = el.getAttribute("data-faz-src");
+            var imgSrc = el.getAttribute("data-faz-src");
+            if (!_fazIsAllowedScheme(imgSrc)) return;
+            el.src = imgSrc;
             el.removeAttribute("data-faz-src");
         });
 
@@ -1255,7 +1282,9 @@ function _fazUnblockServerSide() {
         .forEach(function (el) {
             var cat = el.getAttribute("data-faz-category");
             if (_fazIsCategoryToBeBlocked(cat)) return;
-            el.href = el.getAttribute("data-faz-href");
+            var fazHref = el.getAttribute("data-faz-href");
+            if (!_fazIsAllowedScheme(fazHref)) return;
+            el.href = fazHref;
             el.removeAttribute("data-faz-href");
         });
 
@@ -1272,13 +1301,13 @@ function _fazUnblockServerSide() {
             var clone = _fazCreateElementBackup.call(document, "script");
             var origType = script.getAttribute("data-faz-original-type");
             clone.type = origType || "text/javascript";
-            if (script.src) clone.src = script.src;
-            else clone.textContent = script.textContent;
             for (var i = 0; i < script.attributes.length; i++) {
                 var attr = script.attributes[i];
-                if (attr.name === "type" || attr.name === "data-faz-waitfor" || attr.name === "data-faz-loaded" || attr.name === "data-faz-original-type") continue;
+                if (attr.name === "type" || attr.name === "src" || attr.name === "data-faz-waitfor" || attr.name === "data-faz-loaded" || attr.name === "data-faz-original-type") continue;
                 clone.setAttribute(attr.name, attr.value);
             }
+            if (script.src) clone.src = script.src;
+            else clone.textContent = script.textContent;
             script.parentNode.replaceChild(clone, script);
         });
 
@@ -1422,6 +1451,13 @@ function _fazShouldChangeType(element, src) {
     // --- XMLHttpRequest ---
     var _fazOrigXHROpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (method, url) {
+        // Clean up synthetic properties from a previous blocked request
+        // so this XHR instance can be reused for a legitimate request.
+        if (this._fazBlocked) {
+            try { delete this.status; } catch (e) { /* non-configurable fallback */ }
+            try { delete this.readyState; } catch (e) { /* non-configurable fallback */ }
+            try { delete this.responseText; } catch (e) { /* non-configurable fallback */ }
+        }
         var endpoint = _fazExtractEndpoint(url);
         this._fazBlocked = !!(endpoint && _fazShouldBlockProvider(endpoint));
         return _fazOrigXHROpen.apply(this, arguments);
@@ -1429,9 +1465,9 @@ function _fazShouldChangeType(element, src) {
     var _fazOrigXHRSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function (body) {
         if (this._fazBlocked) {
-            Object.defineProperty(this, "status", { get: function () { return 200; } });
-            Object.defineProperty(this, "readyState", { get: function () { return 4; } });
-            Object.defineProperty(this, "responseText", { get: function () { return ""; } });
+            Object.defineProperty(this, "status", { configurable: true, get: function () { return 200; } });
+            Object.defineProperty(this, "readyState", { configurable: true, get: function () { return 4; } });
+            Object.defineProperty(this, "responseText", { configurable: true, get: function () { return ""; } });
             if (typeof this.onreadystatechange === "function") {
                 this.onreadystatechange();
             }
@@ -1566,6 +1602,8 @@ function _fazAttachManualLinksStyles() {
     });
 }
 
+var _fazCategoriesBeforeConsent = null;
+
 function _fazAfterConsent() {
     if (_fazGetLaw() === 'gdpr') _fazSetPreferenceCheckBoxStates(true);
     _fazUpdateVendorCheckboxStates();
@@ -1573,10 +1611,22 @@ function _fazAfterConsent() {
     // Clean up cookies from categories the user has not consented to.
     _fazCleanupRevokedCookies();
 
+    // Detect category revocation: executed JavaScript cannot be unloaded,
+    // so we must reload the page for the server to omit those scripts.
+    var revoked = false;
+    if (_fazCategoriesBeforeConsent && _fazCategoriesBeforeConsent.length) {
+        for (var ri = 0; ri < _fazCategoriesBeforeConsent.length; ri++) {
+            if (_fazIsCategoryToBeBlocked(_fazCategoriesBeforeConsent[ri])) {
+                revoked = true;
+                break;
+            }
+        }
+    }
+
     // Re-run server-side unblocking for newly accepted categories.
     _fazUnblockServerSide();
 
-    if (_fazStore._bannerConfig.behaviours.reloadBannerOnAccept === true) {
+    if (revoked || _fazStore._bannerConfig.behaviours.reloadBannerOnAccept === true) {
         window.location.reload();
     }
 }

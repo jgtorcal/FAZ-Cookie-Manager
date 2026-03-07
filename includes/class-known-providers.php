@@ -1359,7 +1359,7 @@ class Known_Providers {
 			/* ── WPForms ─────────────────────────────────── */
 			'wpforms' => array(
 				'label'    => 'WPForms',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'wpforms-recaptcha',
 					'wpforms-hcaptcha',
@@ -1617,7 +1617,7 @@ class Known_Providers {
 			/* ── Ninja Forms reCAPTCHA ───────────────────── */
 			'ninja-forms-recaptcha' => array(
 				'label'    => 'Ninja Forms reCAPTCHA',
-				'category' => 'functional',
+				'category' => 'necessary',
 				'patterns' => array(
 					'nf-google-recaptcha',
 				),
